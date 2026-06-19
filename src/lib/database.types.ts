@@ -294,6 +294,10 @@ export type Database = {
       admin_resume_auction: { Args: { p_auction: number }; Returns: undefined }
       available_credits: { Args: { p_manager: string }; Returns: number }
       is_admin: { Args: Record<string, never>; Returns: boolean }
+      list_login_profiles: {
+        Args: Record<string, never>
+        Returns: { username: string; display_name: string; team_name: string | null }[]
+      }
       locked_credits: { Args: { p_manager: string }; Returns: number }
       place_bid: { Args: { p_amount: number; p_auction: number }; Returns: undefined }
       set_autobid: { Args: { p_auction: number; p_max: number }; Returns: undefined }

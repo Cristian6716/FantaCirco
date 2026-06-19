@@ -183,3 +183,15 @@ $$;
 alter publication supabase_realtime add table auctions;
 alter publication supabase_realtime add table bids;
 alter publication supabase_realtime add table auction_participants;
+
+-- ---- Accesso fase di prova: elenco profili per il picker "scegli la tua squadra" ----
+create or replace function list_login_profiles()
+returns table(username text, display_name text, team_name text)
+language sql stable security definer set search_path = public as $$
+  select username, display_name, team_name
+  from managers
+  where not is_admin
+  order by coalesce(team_name, display_name);
+$$;
+revoke execute on function list_login_profiles() from public;
+grant execute on function list_login_profiles() to anon, authenticated;
