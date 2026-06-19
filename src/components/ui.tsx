@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Enums } from '../lib/database.types'
-import { countdown, ROLE_COLOR, ROLE_SHORT, statusLabel } from '../lib/format'
+import { countdown, roleColor, statusLabel } from '../lib/format'
 
 export function Countdown({ target, className }: { target: string; className?: string }) {
   const [, setTick] = useState(0)
@@ -12,13 +12,18 @@ export function Countdown({ target, className }: { target: string; className?: s
   return <span className={className}>{text}</span>
 }
 
-export function RoleBadge({ role }: { role: Enums<'player_role'> | null }) {
-  if (!role) return null
+export function RoleBadge({ roles }: { roles: string[] | null | undefined }) {
+  if (!roles || roles.length === 0) return null
   return (
-    <span
-      className={`inline-flex h-6 w-6 items-center justify-center rounded-md border text-xs font-bold ${ROLE_COLOR[role]}`}
-    >
-      {ROLE_SHORT[role]}
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {roles.map((r) => (
+        <span
+          key={r}
+          className={`inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border px-1 text-[11px] font-bold ${roleColor(r)}`}
+        >
+          {r}
+        </span>
+      ))}
     </span>
   )
 }
@@ -35,6 +40,72 @@ export function StatusBadge({ status }: { status: Enums<'auction_status'> }) {
     <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
       {statusLabel(status)}
     </span>
+  )
+}
+
+/**
+ * Campo numerico con stepper −/+ adatto al mobile.
+ * Permette di svuotare il campo mentre si digita (non forza un valore); il
+ * minimo viene applicato solo all'uscita dal campo (blur).
+ */
+export function QtyInput({
+  value,
+  onChange,
+  min = 1,
+  size = 'lg',
+}: {
+  value: number
+  onChange: (n: number) => void
+  min?: number
+  size?: 'lg' | 'md'
+}) {
+  const [text, setText] = useState(String(value))
+  useEffect(() => {
+    setText(String(value))
+  }, [value])
+
+  const h = size === 'lg' ? 'h-12' : 'h-11'
+  const txt = size === 'lg' ? 'text-xl' : 'text-lg'
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label="Diminuisci"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        className={`${h} w-12 shrink-0 rounded-xl border border-border bg-surface-2 text-2xl text-white active:scale-95`}
+      >
+        −
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\D/g, '')
+          setText(v)
+          if (v !== '') onChange(parseInt(v, 10))
+        }}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={() => {
+          const n = parseInt(text, 10)
+          if (!Number.isFinite(n) || n < min) {
+            onChange(min)
+            setText(String(min))
+          }
+        }}
+        className={`${h} ${txt} w-full rounded-xl border border-border bg-surface-2 text-center font-bold text-white outline-none focus:border-accent`}
+      />
+      <button
+        type="button"
+        aria-label="Aumenta"
+        onClick={() => onChange(value + 1)}
+        className={`${h} w-12 shrink-0 rounded-xl border border-border bg-surface-2 text-2xl text-white active:scale-95`}
+      >
+        +
+      </button>
+    </div>
   )
 }
 

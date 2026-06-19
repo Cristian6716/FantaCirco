@@ -16,8 +16,7 @@ import {
   updateManagerCredits,
   type NewPlayer,
 } from '../lib/api'
-import { isActive } from '../lib/format'
-import type { Enums } from '../lib/database.types'
+import { isActive, parseRoles } from '../lib/format'
 
 const inputCls =
   'w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-white outline-none focus:border-accent'
@@ -135,14 +134,16 @@ function ManagerRow({
   onSaved: () => void
 }) {
   const toast = useToast()
-  const [value, setValue] = useState(total)
+  const [text, setText] = useState(String(total))
   const [saving, setSaving] = useState(false)
-  const dirty = value !== total
+  const parsed = text === '' ? null : parseInt(text, 10)
+  const dirty = parsed !== null && parsed !== total
 
   async function save() {
+    if (parsed === null) return
     setSaving(true)
     try {
-      await updateManagerCredits(id, value)
+      await updateManagerCredits(id, parsed)
       onSaved()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
@@ -168,10 +169,13 @@ function ManagerRow({
       <div className="mt-2 flex items-center gap-2">
         <span className="text-xs text-slate-400">Crediti totali</span>
         <input
-          type="number"
-          min={0}
-          value={value}
-          onChange={(e) => setValue(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={text}
+          onChange={(e) => setText(e.target.value.replace(/\D/g, ''))}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={() => { if (text === '') setText(String(total)) }}
           className="ml-auto h-9 w-24 rounded-lg border border-border bg-surface-2 text-center text-sm font-semibold text-white outline-none focus:border-accent"
         />
         <button
@@ -192,7 +196,7 @@ function CreateManagerForm({ onCreated }: { onCreated: () => void }) {
     username: '',
     display_name: '',
     team_name: '',
-    credits: 0,
+    credits: '',
     password: '',
     is_admin: false,
   })
@@ -205,7 +209,7 @@ function CreateManagerForm({ onCreated }: { onCreated: () => void }) {
         username: f.username,
         display_name: f.display_name,
         team_name: f.team_name || undefined,
-        credits: f.credits,
+        credits: Number(f.credits) || 0,
         password: f.password,
         is_admin: f.is_admin,
       })
@@ -242,10 +246,11 @@ function CreateManagerForm({ onCreated }: { onCreated: () => void }) {
       <div className="flex gap-2">
         <input
           className={inputCls}
-          type="number"
+          inputMode="numeric"
+          pattern="[0-9]*"
           placeholder="Crediti"
           value={f.credits}
-          onChange={(e) => setF({ ...f, credits: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
+          onChange={(e) => setF({ ...f, credits: e.target.value.replace(/\D/g, '') })}
         />
         <input
           className={inputCls}
@@ -278,23 +283,18 @@ function CreateManagerForm({ onCreated }: { onCreated: () => void }) {
 /* ---------------- Giocatori ---------------- */
 
 function parsePlayers(text: string): NewPlayer[] {
-  const roles: Record<string, Enums<'player_role'>> = {
-    p: 'P', por: 'P', portiere: 'P',
-    d: 'D', dif: 'D', difensore: 'D',
-    c: 'C', cen: 'C', centrocampista: 'C',
-    a: 'A', att: 'A', attaccante: 'A',
-  }
   return text
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
     .map((line) => {
-      const parts = line.split(/[,;\t]/).map((p) => p.trim())
+      // Colonne separate da virgola o tab; i ruoli (3a colonna) possono essere
+      // multipli es. "Dd/Ds" o "M;C".
+      const parts = line.split(/[,\t]/).map((p) => p.trim())
       const name = parts[0]
       const team = parts[1] || null
-      const roleRaw = (parts[2] || '').toLowerCase()
-      const role = roles[roleRaw] ?? null
-      return { name, real_team: team, role }
+      const roles = parts[2] ? parseRoles(parts[2]) : []
+      return { name, real_team: team, roles }
     })
     .filter((p) => p.name)
 }
@@ -348,14 +348,15 @@ function PlayersTab() {
       <div className="rounded-xl border border-border bg-surface p-3">
         <h2 className="text-sm font-semibold text-slate-200">Importa svincolati</h2>
         <p className="mt-1 text-xs text-slate-400">
-          Un giocatore per riga: <code className="text-slate-300">Nome, Squadra, Ruolo</code>{' '}
-          (ruolo = P/D/C/A). Squadra e ruolo facoltativi.
+          Un giocatore per riga: <code className="text-slate-300">Nome, Squadra, Ruoli</code>{' '}
+          (ruoli Mantra, anche multipli es. <code className="text-slate-300">Dd/Ds</code> o{' '}
+          <code className="text-slate-300">M;C</code>). Squadra e ruoli facoltativi.
         </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
-          placeholder={'Lautaro Martinez, Inter, A\nTheo Hernandez, Milan, D\n…'}
+          placeholder={'Lautaro Martinez, Inter, A;Pc\nTheo Hernandez, Milan, Ds/E\nBarella, Inter, M;C\n…'}
           className="mt-2 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-xs text-white outline-none focus:border-accent"
         />
         <button
@@ -370,7 +371,7 @@ function PlayersTab() {
       <div className="space-y-2">
         {(players ?? []).map((p) => (
           <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2">
-            <RoleBadge role={p.role} />
+            <RoleBadge roles={p.roles} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">{p.name}</p>
               <p className="truncate text-xs text-slate-400">

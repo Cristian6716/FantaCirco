@@ -98,7 +98,7 @@ export default function AuctionsPage() {
               key={a.id}
               auction={a}
               playerName={playerMap.get(a.player_id)?.name ?? '—'}
-              playerRole={playerMap.get(a.player_id)?.role ?? null}
+              playerRoles={playerMap.get(a.player_id)?.roles ?? []}
               playerTeam={playerMap.get(a.player_id)?.real_team ?? null}
               leaderName={a.leader_id ? managerMap.get(a.leader_id)?.display_name ?? '—' : '—'}
               isLeader={a.leader_id === manager?.id}
@@ -136,7 +136,7 @@ function SegBtn({
 function AuctionCard({
   auction,
   playerName,
-  playerRole,
+  playerRoles,
   playerTeam,
   leaderName,
   isLeader,
@@ -144,7 +144,7 @@ function AuctionCard({
 }: {
   auction: Auction
   playerName: string
-  playerRole: Parameters<typeof RoleBadge>[0]['role']
+  playerRoles: string[]
   playerTeam: string | null
   leaderName: string
   isLeader: boolean
@@ -161,7 +161,7 @@ function AuctionCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <RoleBadge role={playerRole} />
+          <RoleBadge roles={playerRoles} />
           <div className="min-w-0">
             <p className="truncate font-semibold text-white">{playerName}</p>
             {playerTeam && <p className="truncate text-xs text-slate-400">{playerTeam}</p>}

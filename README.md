@@ -48,7 +48,8 @@ vercel --prod # deploy in produzione
 
 ## Amministrazione (riservato all'admin)
 - **Fantallenatori**: crea gli account (username + password), assegna i crediti.
-- **Giocatori**: importa gli svincolati (un giocatore per riga: `Nome, Squadra, Ruolo`).
+- **Giocatori**: importa gli svincolati (un giocatore per riga: `Nome, Squadra, Ruoli`;
+  ruoli **Mantra** anche multipli, es. `Dd/Ds` o `M;C`). Modalità Mantra.
 - **Aste**: metti in pausa / annulla / elimina singole aste o tutte (con conferma).
 
 Primo accesso admin: utente **`cristian`**, password **`FantaAdmin2026`** (cambiala da *Profilo*).

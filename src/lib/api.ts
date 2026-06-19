@@ -58,14 +58,14 @@ export async function adminDeleteAll(): Promise<void> {
 export interface NewPlayer {
   name: string
   real_team?: string | null
-  role?: 'P' | 'D' | 'C' | 'A' | null
+  roles?: string[]
 }
 
 export async function importPlayers(players: NewPlayer[]): Promise<number> {
   const rows = players.map((p) => ({
     name: p.name,
     real_team: p.real_team ?? null,
-    role: p.role ?? null,
+    roles: p.roles ?? [],
   }))
   const { error, count } = await supabase
     .from('players')

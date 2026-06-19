@@ -11,7 +11,7 @@ import {
   useParticipants,
   usePlayers,
 } from '../lib/queries'
-import { Countdown, PageLoader, RoleBadge, Spinner, StatusBadge } from '../components/ui'
+import { Countdown, PageLoader, QtyInput, RoleBadge, Spinner, StatusBadge } from '../components/ui'
 import { formatDateTime, formatTime, isActive } from '../lib/format'
 import { placeBid, setAutobid, withdraw } from '../lib/api'
 import { useToast } from '../components/Toast'
@@ -73,7 +73,7 @@ export default function AuctionDetailPage() {
       <div className="rounded-2xl border border-border bg-surface p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <RoleBadge role={player?.role ?? null} />
+            <RoleBadge roles={player?.roles ?? []} />
             <div>
               <h1 className="text-xl font-bold text-white">{player?.name ?? '—'}</h1>
               {player?.real_team && <p className="text-sm text-slate-400">{player.real_team}</p>}
@@ -292,26 +292,8 @@ function BidPanel({
         <h2 className="text-sm font-semibold text-slate-200">Rilancia</h2>
         <span className="text-xs text-slate-400">min {minBid} · disp. {available}</span>
       </div>
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          onClick={() => setAmount((a) => Math.max(minBid, a - 1))}
-          className="h-12 w-12 shrink-0 rounded-xl border border-border bg-surface-2 text-2xl text-white active:scale-95"
-        >
-          −
-        </button>
-        <input
-          type="number"
-          min={minBid}
-          value={amount}
-          onChange={(e) => setAmount(Math.max(1, Math.floor(Number(e.target.value) || minBid)))}
-          className="h-12 w-full rounded-xl border border-border bg-surface-2 text-center text-xl font-bold text-white outline-none focus:border-accent"
-        />
-        <button
-          onClick={() => setAmount((a) => a + 1)}
-          className="h-12 w-12 shrink-0 rounded-xl border border-border bg-surface-2 text-2xl text-white active:scale-95"
-        >
-          +
-        </button>
+      <div className="mt-3">
+        <QtyInput value={amount} onChange={setAmount} min={minBid} />
       </div>
       <div className="mt-2 flex gap-1.5">
         {[1, 5, 10].map((inc) => (
@@ -398,26 +380,8 @@ function AutobidPanel({
 
       {open && (
         <>
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              onClick={() => setMax((m) => Math.max(minMax, m - 1))}
-              className="h-11 w-11 rounded-xl border border-border bg-surface-2 text-xl text-white active:scale-95"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              min={minMax}
-              value={max}
-              onChange={(e) => setMax(Math.max(1, Math.floor(Number(e.target.value) || minMax)))}
-              className="h-11 w-full rounded-xl border border-border bg-surface-2 text-center text-lg font-bold text-white outline-none focus:border-accent"
-            />
-            <button
-              onClick={() => setMax((m) => m + 1)}
-              className="h-11 w-11 rounded-xl border border-border bg-surface-2 text-xl text-white active:scale-95"
-            >
-              +
-            </button>
+          <div className="mt-3">
+            <QtyInput value={max} onChange={setMax} min={minMax} size="md" />
           </div>
           <p className="mt-1.5 text-xs text-slate-400">
             Min {minMax} · disponibili {credits?.available ?? 0}. Il tetto si può solo aumentare.

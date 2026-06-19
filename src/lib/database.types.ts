@@ -181,7 +181,7 @@ export type Database = {
           id: number
           name: string
           real_team: string | null
-          role: Database["public"]["Enums"]["player_role"] | null
+          roles: string[]
           status: Database["public"]["Enums"]["player_status"]
         }
         Insert: {
@@ -190,7 +190,7 @@ export type Database = {
           id?: never
           name: string
           real_team?: string | null
-          role?: Database["public"]["Enums"]["player_role"] | null
+          roles?: string[]
           status?: Database["public"]["Enums"]["player_status"]
         }
         Update: {
@@ -199,7 +199,7 @@ export type Database = {
           id?: never
           name?: string
           real_team?: string | null
-          role?: Database["public"]["Enums"]["player_role"] | null
+          roles?: string[]
           status?: Database["public"]["Enums"]["player_status"]
         }
         Relationships: []
@@ -310,7 +310,6 @@ export type Database = {
     }
     Enums: {
       auction_status: "phase1" | "phase2" | "paused" | "ended" | "cancelled"
-      player_role: "P" | "D" | "C" | "A"
       player_status: "available" | "in_auction" | "assigned"
     }
     CompositeTypes: {

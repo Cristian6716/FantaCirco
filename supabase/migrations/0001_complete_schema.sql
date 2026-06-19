@@ -7,7 +7,7 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 -- ---- Enums ----
-create type player_role as enum ('P','D','C','A');
+-- (i ruoli Mantra sono memorizzati come text[] su players.roles, non come enum)
 create type player_status as enum ('available','in_auction','assigned');
 create type auction_status as enum ('phase1','phase2','paused','ended','cancelled');
 
@@ -26,7 +26,7 @@ create table players (
   id bigint generated always as identity primary key,
   name text not null,
   real_team text,
-  role player_role,
+  roles text[] not null default '{}',
   status player_status not null default 'available',
   assigned_to uuid references managers(id),
   created_at timestamptz not null default now()

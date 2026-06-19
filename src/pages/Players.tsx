@@ -8,14 +8,13 @@ import {
   usePlayers,
   type Player,
 } from '../lib/queries'
-import { EmptyState, PageLoader, RoleBadge, Spinner } from '../components/ui'
-import { ROLE_LABEL } from '../lib/format'
+import { EmptyState, PageLoader, QtyInput, RoleBadge, Spinner } from '../components/ui'
+import { MACRO_LABEL, ROLE_MACRO, type Macro } from '../lib/format'
 import { startAuction } from '../lib/api'
 import { useToast } from '../components/Toast'
 import { buildWhatsappMessage, shareOnWhatsapp } from '../lib/share'
-import type { Enums } from '../lib/database.types'
 
-type RoleFilter = 'all' | Enums<'player_role'>
+type RoleFilter = 'all' | Macro
 
 export default function PlayersPage() {
   const { data: players, isLoading } = usePlayers()
@@ -40,7 +39,7 @@ export default function PlayersPage() {
   const list = useMemo(() => {
     let res = players ?? []
     if (!showTaken) res = res.filter((p) => p.status === 'available')
-    if (role !== 'all') res = res.filter((p) => p.role === role)
+    if (role !== 'all') res = res.filter((p) => p.roles.some((rr) => ROLE_MACRO[rr] === role))
     const q = search.trim().toLowerCase()
     if (q) res = res.filter((p) => p.name.toLowerCase().includes(q) || (p.real_team ?? '').toLowerCase().includes(q))
     return res
@@ -71,7 +70,7 @@ export default function PlayersPage() {
                 : 'border-border bg-surface text-slate-400',
             ].join(' ')}
           >
-            {r === 'all' ? 'Tutti' : ROLE_LABEL[r]}
+            {r === 'all' ? 'Tutti' : MACRO_LABEL[r]}
           </button>
         ))}
         <button
@@ -122,7 +121,7 @@ function PlayerRow({
   const navigate = useNavigate()
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
-      <RoleBadge role={player.role} />
+      <RoleBadge roles={player.roles} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-white">{player.name}</p>
         {player.real_team && <p className="truncate text-xs text-slate-400">{player.real_team}</p>}
@@ -201,7 +200,7 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
         {!created ? (
           <>
             <div className="flex items-center gap-3">
-              <RoleBadge role={player.role} />
+              <RoleBadge roles={player.roles} />
               <div>
                 <h3 className="text-lg font-semibold text-white">{player.name}</h3>
                 {player.real_team && <p className="text-xs text-slate-400">{player.real_team}</p>}
@@ -211,26 +210,8 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
             <p className="mt-4 text-sm text-slate-300">
               Offerta base di apertura (sarai tu il primo in testa):
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                onClick={() => setBase((b) => Math.max(1, b - 1))}
-                className="h-11 w-11 rounded-xl border border-border bg-surface-2 text-xl text-white active:scale-95"
-              >
-                −
-              </button>
-              <input
-                type="number"
-                min={1}
-                value={base}
-                onChange={(e) => setBase(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
-                className="h-11 w-full rounded-xl border border-border bg-surface-2 text-center text-lg font-bold text-white outline-none focus:border-accent"
-              />
-              <button
-                onClick={() => setBase((b) => b + 1)}
-                className="h-11 w-11 rounded-xl border border-border bg-surface-2 text-xl text-white active:scale-95"
-              >
-                +
-              </button>
+            <div className="mt-2">
+              <QtyInput value={base} onChange={setBase} min={1} />
             </div>
             <p className={`mt-2 text-xs ${tooHigh ? 'text-rose-300' : 'text-slate-400'}`}>
               Crediti disponibili: {available}

@@ -32,12 +32,16 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Safe-area padding for installed PWA on iOS */
+/* Safe-area padding per PWA installata (iOS/Android con notch o home indicator) */
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+/* Spazio in fondo al contenuto per non finire sotto la barra di navigazione fissa */
+.pb-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
 }
 
 button {
