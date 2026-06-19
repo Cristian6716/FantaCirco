@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0b1120;
+  --color-surface: #131a2b;
+  --color-surface-2: #1b2438;
+  --color-border: #273249;
+  --color-accent: #22c55e;
+  --color-accent-strong: #16a34a;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --font-sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: #e2e8f0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+/* Safe-area padding for installed PWA on iOS */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+}
