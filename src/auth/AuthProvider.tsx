@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase, usernameToEmail } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import type { Tables } from '../lib/database.types'
 
 type Manager = Tables<'managers'>
@@ -18,7 +18,10 @@ interface AuthContextValue {
   manager: Manager | null
   loading: boolean
   isAdmin: boolean
-  signIn: (username: string, password: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  /** Ritorna true se la registrazione ha creato subito una sessione attiva
+   * (nessuna conferma email richiesta), false se serve confermare via email. */
+  signUp: (email: string, password: string) => Promise<boolean>
   signOut: () => Promise<void>
   refreshManager: () => Promise<void>
 }
@@ -58,14 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadManager])
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: usernameToEmail(username),
-      password,
-    })
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      throw new Error('Username o password non validi')
+      throw new Error('Email o password non validi')
     }
+  }, [])
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) {
+      throw new Error(error.message === 'User already registered' ? 'Email già registrata' : error.message)
+    }
+    return !!data.session
   }, [])
 
   const signOut = useCallback(async () => {
@@ -84,10 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAdmin: !!manager?.is_admin,
       signIn,
+      signUp,
       signOut,
       refreshManager,
     }),
-    [session, manager, loading, signIn, signOut, refreshManager],
+    [session, manager, loading, signIn, signUp, signOut, refreshManager],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

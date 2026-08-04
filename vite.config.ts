@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Fanta Dinamica',
-        short_name: 'Fanta Din.',
+        name: 'FantaCirco',
+        short_name: 'FantaCirco',
         description: "Asta dinamica del fantacalcio: rilanci, auto-bid, crediti e notifiche.",
         lang: 'it',
         theme_color: '#0b1120',

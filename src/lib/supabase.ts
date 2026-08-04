@@ -9,11 +9,6 @@ if (!url || !key) {
   console.error('Variabili VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY mancanti')
 }
 
-// Username -> email sintetica usata internamente da Supabase Auth
-export const EMAIL_DOMAIN = 'fanta.local'
-export const usernameToEmail = (username: string) =>
-  `${username.toLowerCase().trim()}@${EMAIL_DOMAIN}`
-
 export const FUNCTIONS_URL = `${url}/functions/v1`
 
 export const supabase = createClient<Database>(url, key, {

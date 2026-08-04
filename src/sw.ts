@@ -28,10 +28,10 @@ self.addEventListener('push', (event) => {
   try {
     payload = (event.data?.json() as PushPayload) ?? {}
   } catch {
-    payload = { title: 'Fanta Dinamica', body: event.data?.text() }
+    payload = { title: 'FantaCirco', body: event.data?.text() }
   }
 
-  const title = payload.title || 'Fanta Dinamica'
+  const title = payload.title || 'FantaCirco'
   const options: NotificationOptions = {
     body: payload.body || '',
     icon: '/icons/icon-192.png',

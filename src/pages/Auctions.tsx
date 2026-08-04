@@ -50,7 +50,7 @@ export default function AuctionsPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-white">Aste</h1>
         <Link
-          to="/giocatori"
+          to="/asta/giocatori"
           className="rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Avvia asta
@@ -156,7 +156,7 @@ function AuctionCard({
 
   return (
     <Link
-      to={`/asta/${auction.id}`}
+      to={`/asta/aste/${auction.id}`}
       className="block rounded-2xl border border-border bg-surface p-3.5 active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-2">

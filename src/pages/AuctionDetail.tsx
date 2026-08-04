@@ -47,7 +47,7 @@ export default function AuctionDetailPage() {
       <div className="py-20 text-center text-slate-400">
         Asta non trovata.
         <div>
-          <button onClick={() => navigate('/')} className="mt-3 text-accent">
+          <button onClick={() => navigate('/asta/aste')} className="mt-3 text-accent">
             ‹ Torna alle aste
           </button>
         </div>
@@ -65,7 +65,7 @@ export default function AuctionDetailPage() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate('/')} className="text-sm text-slate-400">
+      <button onClick={() => navigate('/asta/aste')} className="text-sm text-slate-400">
         ‹ Aste
       </button>
 

@@ -24,6 +24,8 @@ export default function PlayersPage() {
   const [role, setRole] = useState<RoleFilter>('all')
   const [showTaken, setShowTaken] = useState(false)
   const [target, setTarget] = useState<Player | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filtersActive = role !== 'all' || showTaken
 
   const managerMap = useMemo(() => new Map((managers ?? []).map((m) => [m.id, m])), [managers])
   const activeAuctionByPlayer = useMemo(() => {
@@ -58,13 +60,59 @@ export default function PlayersPage() {
         className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-white outline-none focus:border-accent"
       />
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Mobile: un solo bottone che apre il pannello filtri a cascata. */}
+      <div className="lg:hidden">
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-white active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2">
+            Filtri
+            {filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+          </span>
+          <span className={`text-xs text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        {filtersOpen && (
+          <div className="mt-2 space-y-2 rounded-xl border border-border bg-surface p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', 'P', 'D', 'C', 'A'] as RoleFilter[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={[
+                    'rounded-lg border px-3 py-1.5 text-xs font-medium',
+                    role === r
+                      ? 'border-accent/60 bg-accent/15 text-accent'
+                      : 'border-border bg-surface-2 text-slate-400',
+                  ].join(' ')}
+                >
+                  {r === 'all' ? 'Tutti' : MACRO_LABEL[r]}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowTaken((v) => !v)}
+              className={[
+                'w-full rounded-lg border px-3 py-1.5 text-xs font-medium',
+                showTaken
+                  ? 'border-sky-500/50 bg-sky-500/15 text-sky-200'
+                  : 'border-border bg-surface-2 text-slate-400',
+              ].join(' ')}
+            >
+              {showTaken ? 'Mostra solo liberi' : 'Mostra anche assegnati'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: fila di chip, spazio a sufficienza per mostrarle tutte. */}
+      <div className="hidden items-center gap-1.5 overflow-x-auto pb-0.5 lg:flex">
         {(['all', 'P', 'D', 'C', 'A'] as RoleFilter[]).map((r) => (
           <button
             key={r}
             onClick={() => setRole(r)}
             className={[
-              'rounded-lg border px-3 py-1.5 text-xs font-medium',
+              'shrink-0 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium',
               role === r
                 ? 'border-accent/60 bg-accent/15 text-accent'
                 : 'border-border bg-surface text-slate-400',
@@ -76,7 +124,7 @@ export default function PlayersPage() {
         <button
           onClick={() => setShowTaken((v) => !v)}
           className={[
-            'ml-auto rounded-lg border px-3 py-1.5 text-xs font-medium',
+            'ml-auto shrink-0 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium',
             showTaken
               ? 'border-sky-500/50 bg-sky-500/15 text-sky-200'
               : 'border-border bg-surface text-slate-400',
@@ -136,7 +184,7 @@ function PlayerRow({
       )}
       {player.status === 'in_auction' && activeAuctionId && (
         <button
-          onClick={() => navigate(`/asta/${activeAuctionId}`)}
+          onClick={() => navigate(`/asta/aste/${activeAuctionId}`)}
           className="rounded-lg border border-amber-500/50 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200"
         >
           In asta ›
@@ -247,7 +295,7 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
               💬 Condividi su WhatsApp
             </button>
             <button
-              onClick={() => navigate(`/asta/${created.id}`)}
+              onClick={() => navigate(`/asta/aste/${created.id}`)}
               className="mt-2 w-full rounded-xl bg-accent-strong py-2.5 font-semibold text-white active:scale-[0.98]"
             >
               Vai all'asta

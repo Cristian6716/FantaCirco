@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type { Tables } from './database.types'
 import { useAuth } from '../auth/AuthProvider'
@@ -51,6 +51,20 @@ export function usePlayers() {
       return data ?? []
     },
     staleTime: 30_000,
+  })
+}
+
+export function useClaimTeam() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (teamName: string) => {
+      const { error } = await supabase.rpc('claim_team', { p_team_name: teamName })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['managers'] })
+      qc.invalidateQueries({ queryKey: ['partite'] })
+    },
   })
 }
 

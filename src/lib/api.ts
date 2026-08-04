@@ -50,7 +50,7 @@ export async function adminDelete(auctionId: number): Promise<void> {
   if (error) throw new Error(error.message)
 }
 export async function adminDeleteAll(): Promise<void> {
-  const { error } = await supabase.rpc('admin_delete_all_auctions', {})
+  const { error } = await supabase.rpc('admin_delete_all_auctions')
   if (error) throw new Error(error.message)
 }
 

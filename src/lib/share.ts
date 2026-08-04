@@ -1,7 +1,7 @@
 import { formatDateTime } from './format'
 
 export function auctionUrl(auctionId: number): string {
-  return `${window.location.origin}/asta/${auctionId}`
+  return `${window.location.origin}/asta/aste/${auctionId}`
 }
 
 export function buildWhatsappMessage(opts: {

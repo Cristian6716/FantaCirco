@@ -12,6 +12,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       auction_participants: {
         Row: {
           auction_id: number
@@ -144,6 +159,24 @@ export type Database = {
         }
         Relationships: []
       }
+      giornate: {
+        Row: {
+          created_at: string
+          numero: number
+          pronostici_chiusi: boolean
+        }
+        Insert: {
+          created_at?: string
+          numero: number
+          pronostici_chiusi?: boolean
+        }
+        Update: {
+          created_at?: string
+          numero?: number
+          pronostici_chiusi?: boolean
+        }
+        Relationships: []
+      }
       managers: {
         Row: {
           created_at: string
@@ -174,6 +207,45 @@ export type Database = {
         }
         Relationships: []
       }
+      partite: {
+        Row: {
+          casa: string
+          casa_manager: string | null
+          data_ora: string | null
+          giornata: number
+          gol_casa: number | null
+          gol_trasferta: number | null
+          id: string
+          ordine: number
+          trasferta: string
+          trasferta_manager: string | null
+        }
+        Insert: {
+          casa: string
+          casa_manager?: string | null
+          data_ora?: string | null
+          giornata: number
+          gol_casa?: number | null
+          gol_trasferta?: number | null
+          id: string
+          ordine?: number
+          trasferta: string
+          trasferta_manager?: string | null
+        }
+        Update: {
+          casa?: string
+          casa_manager?: string | null
+          data_ora?: string | null
+          giornata?: number
+          gol_casa?: number | null
+          gol_trasferta?: number | null
+          id?: string
+          ordine?: number
+          trasferta?: string
+          trasferta_manager?: string | null
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           assigned_to: string | null
@@ -201,6 +273,108 @@ export type Database = {
           real_team?: string | null
           roles?: string[]
           status?: Database["public"]["Enums"]["player_status"]
+        }
+        Relationships: []
+      }
+      podio_rounds: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          id: number
+          numero: number
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          id?: never
+          numero: number
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          id?: never
+          numero?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      podio_votes: {
+        Row: {
+          created_at: string
+          manager_id: string
+          pos1: string
+          pos2: string
+          pos3: string
+          round_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          manager_id: string
+          pos1: string
+          pos2: string
+          pos3: string
+          round_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          manager_id?: string
+          pos1?: string
+          pos2?: string
+          pos3?: string
+          round_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pronostici: {
+        Row: {
+          created_at: string
+          giornata: number
+          manager_id: string
+          partita_id: string
+          pronostico_1x2: string
+          pronostico_ou: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          giornata: number
+          manager_id: string
+          partita_id: string
+          pronostico_1x2: string
+          pronostico_ou: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          giornata?: number
+          manager_id?: string
+          partita_id?: string
+          pronostico_1x2?: string
+          pronostico_ou?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      punteggi_giornata: {
+        Row: {
+          giornata: number
+          manager_id: string
+          punteggio: number
+        }
+        Insert: {
+          giornata: number
+          manager_id: string
+          punteggio: number
+        }
+        Update: {
+          giornata?: number
+          manager_id?: string
+          punteggio?: number
         }
         Relationships: []
       }
@@ -270,6 +444,24 @@ export type Database = {
         }
         Relationships: []
       }
+      torneo_overrides: {
+        Row: {
+          match_id: string
+          updated_at: string
+          winner: string
+        }
+        Insert: {
+          match_id: string
+          updated_at?: string
+          winner: string
+        }
+        Update: {
+          match_id?: string
+          updated_at?: string
+          winner?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_manager_credits: {
@@ -288,19 +480,30 @@ export type Database = {
     }
     Functions: {
       admin_cancel_auction: { Args: { p_auction: number }; Returns: undefined }
-      admin_delete_all_auctions: { Args: Record<string, never>; Returns: undefined }
+      admin_delete_all_auctions: { Args: never; Returns: undefined }
       admin_delete_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_pause_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_resume_auction: { Args: { p_auction: number }; Returns: undefined }
       available_credits: { Args: { p_manager: string }; Returns: number }
-      is_admin: { Args: Record<string, never>; Returns: boolean }
+      claim_team: { Args: { p_team_name: string }; Returns: undefined }
+      is_admin: { Args: never; Returns: boolean }
       list_login_profiles: {
-        Args: Record<string, never>
-        Returns: { username: string; display_name: string; team_name: string | null }[]
+        Args: never
+        Returns: {
+          display_name: string
+          team_name: string
+          username: string
+        }[]
       }
       locked_credits: { Args: { p_manager: string }; Returns: number }
-      place_bid: { Args: { p_amount: number; p_auction: number }; Returns: undefined }
-      set_autobid: { Args: { p_auction: number; p_max: number }; Returns: undefined }
+      place_bid: {
+        Args: { p_amount: number; p_auction: number }
+        Returns: undefined
+      }
+      set_autobid: {
+        Args: { p_auction: number; p_max: number }
+        Returns: undefined
+      }
       start_auction: {
         Args: {
           p_base?: number
@@ -310,6 +513,7 @@ export type Database = {
         }
         Returns: number
       }
+      tick: { Args: never; Returns: undefined }
       withdraw: { Args: { p_auction: number }; Returns: undefined }
     }
     Enums: {
@@ -322,8 +526,111 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database["public"]
-type TablesAndViews = PublicSchema["Tables"] & PublicSchema["Views"]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type Tables<T extends keyof TablesAndViews> = TablesAndViews[T]["Row"]
-export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      auction_status: ["phase1", "phase2", "paused", "ended", "cancelled"],
+      player_status: ["available", "in_auction", "assigned"],
+    },
+  },
+} as const
