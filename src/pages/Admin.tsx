@@ -875,10 +875,8 @@ function GiornateTab() {
 
   // Stato locale editabile: punteggi fanta per manager.
   const [scores, setScores] = useState<Record<string, string>>({})
-  // Stato locale editabile: gol partite.
-  const [gols, setGols] = useState<Record<string, { c: string; t: string }>>({})
 
-  // Reinizializza gli stati locali al cambio giornata / dati.
+  // Reinizializza lo stato locale al cambio giornata / dati.
   useEffect(() => {
     if (current == null) return
     const s: Record<string, string> = {}
@@ -886,17 +884,7 @@ function GiornateTab() {
       if (p.giornata === current) s[p.manager_id] = String(p.punteggio)
     }
     setScores(s)
-    const g: Record<string, { c: string; t: string }> = {}
-    for (const pt of partite ?? []) {
-      if (pt.giornata === current) {
-        g[pt.id] = {
-          c: pt.gol_casa == null ? '' : String(pt.gol_casa),
-          t: pt.gol_trasferta == null ? '' : String(pt.gol_trasferta),
-        }
-      }
-    }
-    setGols(g)
-  }, [current, punteggi, partite])
+  }, [current, punteggi])
 
   const pronosticiCount = useMemo(() => {
     if (!pronostici) return 0
@@ -918,57 +906,32 @@ function GiornateTab() {
   if (isLoading || !managers) return <PageLoader />
   if (current == null) return <p className="py-8 text-center text-sm text-slate-500">Nessuna giornata.</p>
 
+  // Unica fonte di verità: il punteggio fanta totale di ogni squadra. Da qui si
+  // ricava tutto il resto — Battle Royale e bracket lo leggono direttamente da
+  // punteggi_giornata (vedi Tornei.tsx), qui in più calcoliamo e salviamo anche
+  // i gol delle partite del campionato (per la correzione dei pronostici),
+  // con le stesse regole a soglie di calculateMatchResult.
   async function salvaPunteggi() {
     if (current == null) return
+    const parsed: Record<string, number> = {}
     const ops: Promise<unknown>[] = []
     for (const m of squadre) {
       const raw = (scores[m.id] ?? '').replace(',', '.').trim()
       const val = raw === '' ? null : Number(raw)
       if (raw !== '' && !Number.isFinite(val)) continue
       ops.push(setPunteggio.mutateAsync({ giornata: current, manager_id: m.id, punteggio: val }))
+      if (val != null) parsed[m.id] = val
     }
-    try {
-      await Promise.all(ops)
-      toast.success('Punteggi salvati')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Errore')
-    }
-  }
-
-  async function calcolaGolDaiPunteggi() {
-    if (current == null) return
-    const ops: Promise<unknown>[] = []
     for (const p of partiteGiornata) {
-      const sc = p.casa_manager ? Number((scores[p.casa_manager] ?? '').replace(',', '.')) : NaN
-      const st = p.trasferta_manager ? Number((scores[p.trasferta_manager] ?? '').replace(',', '.')) : NaN
-      if (!Number.isFinite(sc) || !Number.isFinite(st)) continue
+      const sc = p.casa_manager != null ? parsed[p.casa_manager] : undefined
+      const st = p.trasferta_manager != null ? parsed[p.trasferta_manager] : undefined
+      if (sc == null || st == null) continue
       const r = calculateMatchResult(sc, st)
       ops.push(setRisultato.mutateAsync({ partita_id: p.id, gol_casa: r.golA, gol_trasferta: r.golB }))
     }
-    if (ops.length === 0) {
-      toast.error('Inserisci prima i punteggi delle squadre coinvolte')
-      return
-    }
     try {
       await Promise.all(ops)
-      toast.success(`Gol calcolati per ${ops.length} partite`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Errore')
-    }
-  }
-
-  async function salvaRisultati() {
-    if (current == null) return
-    const ops: Promise<unknown>[] = []
-    for (const p of partiteGiornata) {
-      const g = gols[p.id] ?? { c: '', t: '' }
-      const c = g.c.trim() === '' ? null : parseInt(g.c, 10)
-      const t = g.t.trim() === '' ? null : parseInt(g.t, 10)
-      ops.push(setRisultato.mutateAsync({ partita_id: p.id, gol_casa: c, gol_trasferta: t }))
-    }
-    try {
-      await Promise.all(ops)
-      toast.success('Risultati salvati')
+      toast.success('Punteggi e risultati campionato salvati')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
     }
@@ -1020,7 +983,8 @@ function GiornateTab() {
       <div className="rounded-xl border border-border bg-surface p-3">
         <h3 className="text-sm font-semibold text-slate-200">Punteggi fanta di giornata</h3>
         <p className="mt-1 text-xs text-slate-400">
-          Alimentano Battle Royale e bracket. Poi puoi generare i risultati delle partite da qui.
+          Unico input della giornata: da qui si calcolano Battle Royale, bracket e i risultati del
+          campionato (sotto) per la correzione dei pronostici.
         </p>
         <div className="mt-2 space-y-1">
           {squadre.map((m) => (
@@ -1038,63 +1002,30 @@ function GiornateTab() {
             </div>
           ))}
         </div>
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={salvaPunteggi}
-            disabled={setPunteggio.isPending}
-            className="flex-1 rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            Salva punteggi
-          </button>
-          <button
-            onClick={calcolaGolDaiPunteggi}
-            disabled={setRisultato.isPending}
-            className="flex-1 rounded-lg border border-border bg-surface-2 py-2 text-sm font-semibold text-slate-200 disabled:opacity-50"
-          >
-            → Genera gol partite
-          </button>
-        </div>
+        <button
+          onClick={salvaPunteggi}
+          disabled={setPunteggio.isPending || setRisultato.isPending}
+          className="mt-3 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          Salva punteggi
+        </button>
       </div>
 
-      {/* Risultati partite (pronostici) */}
+      {/* Risultati partite (pronostici): sola lettura, calcolati dai punteggi sopra */}
       <div className="rounded-xl border border-border bg-surface p-3">
         <h3 className="text-sm font-semibold text-slate-200">Risultati partite (pronostici)</h3>
+        <p className="mt-1 text-xs text-slate-400">Calcolati automaticamente dai punteggi fanta.</p>
         <div className="mt-2 space-y-1.5">
           {partiteGiornata.map((p) => (
             <div key={p.id} className="flex items-center gap-1.5 text-sm">
               <span className="min-w-0 flex-1 truncate text-right text-slate-200">{p.casa}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={gols[p.id]?.c ?? ''}
-                onChange={(e) =>
-                  setGols((g) => ({ ...g, [p.id]: { c: e.target.value.replace(/\D/g, ''), t: g[p.id]?.t ?? '' } }))
-                }
-                onFocus={(e) => e.currentTarget.select()}
-                className="h-9 w-10 rounded-lg border border-border bg-surface-2 text-center font-semibold text-white outline-none focus:border-accent"
-              />
-              <span className="text-slate-500">-</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={gols[p.id]?.t ?? ''}
-                onChange={(e) =>
-                  setGols((g) => ({ ...g, [p.id]: { c: g[p.id]?.c ?? '', t: e.target.value.replace(/\D/g, '') } }))
-                }
-                onFocus={(e) => e.currentTarget.select()}
-                className="h-9 w-10 rounded-lg border border-border bg-surface-2 text-center font-semibold text-white outline-none focus:border-accent"
-              />
+              <span className="min-w-[3.5rem] rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-center font-semibold text-white">
+                {p.gol_casa ?? '—'} - {p.gol_trasferta ?? '—'}
+              </span>
               <span className="min-w-0 flex-1 truncate text-slate-200">{p.trasferta}</span>
             </div>
           ))}
         </div>
-        <button
-          onClick={salvaRisultati}
-          disabled={setRisultato.isPending}
-          className="mt-3 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          Salva risultati
-        </button>
       </div>
 
       {/* Spareggi bracket */}
