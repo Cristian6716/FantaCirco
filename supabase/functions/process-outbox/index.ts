@@ -32,6 +32,8 @@ Deno.serve(async (req: Request) => {
       .order('id', { ascending: true })
       .limit(300)
 
+    const GIVE_UP_AFTER_MS = 24 * 60 * 60 * 1000 // dopo 24h di tentativi falliti, arrendersi
+
     let sent = 0
     for (const n of outbox ?? []) {
       const { data: subs } = await admin
@@ -41,12 +43,16 @@ Deno.serve(async (req: Request) => {
 
       const payload = JSON.stringify({ title: n.title, body: n.body, url: n.url, tag: n.tag })
 
+      let successCount = 0
+      let lastError: string | null = null
+
       for (const s of subs ?? []) {
         try {
           await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
             payload,
           )
+          successCount++
           sent++
         } catch (e) {
           const status = (e as { statusCode?: number })?.statusCode
@@ -54,13 +60,30 @@ Deno.serve(async (req: Request) => {
             // subscription scaduta/non valida -> rimuovi
             await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
           }
+          lastError = `${status ?? 'ERR'}: ${e instanceof Error ? e.message : String(e)}`
         }
       }
 
-      await admin
-        .from('push_outbox')
-        .update({ sent: true, sent_at: new Date().toISOString() })
-        .eq('id', n.id)
+      if (successCount > 0) {
+        // consegnata ad almeno un dispositivo: chiusa con successo
+        await admin
+          .from('push_outbox')
+          .update({ sent: true, sent_at: new Date().toISOString(), error: null })
+          .eq('id', n.id)
+      } else {
+        // nessun dispositivo raggiunto (nessuna subscription o invii tutti falliti):
+        // ritenta ai prossimi giri di cron, arrenditi solo dopo 24h per non accumulare righe in eterno
+        const ageMs = Date.now() - new Date(n.created_at).getTime()
+        const giveUp = ageMs > GIVE_UP_AFTER_MS
+        await admin
+          .from('push_outbox')
+          .update({
+            sent: giveUp,
+            sent_at: giveUp ? new Date().toISOString() : null,
+            error: lastError ?? (subs && subs.length === 0 ? 'no_subscriptions' : 'unknown'),
+          })
+          .eq('id', n.id)
+      }
     }
 
     return new Response(JSON.stringify({ processed: (outbox ?? []).length, sent }), {

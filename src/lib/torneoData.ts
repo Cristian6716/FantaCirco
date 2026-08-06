@@ -8,12 +8,12 @@ export const initialMatches: TorneoMatch[] = [
   // --- GIORNATA 25 ---
   { id: 'M1', day: 25, bracket: 'upper', teamA: 'Energy Team', teamB: 'Fessa Kyoto Fc', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
   { id: 'M2', day: 25, bracket: 'upper', teamA: 'Rocks Pirates', teamB: 'Fc Padre Tempo', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
-  { id: 'M6', day: 25, bracket: 'mid', teamA: 'Fredin FC', teamB: 'Soh Matta', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
-  { id: 'M7', day: 25, bracket: 'mid', teamA: 'Lang olodelsesso', teamB: 'Come VaVa', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
+  { id: 'M6', day: 25, bracket: 'mid', teamA: 'Fredin FC', teamB: 'Minotorino', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
+  { id: 'M7', day: 25, bracket: 'mid', teamA: 'Hadjuk Spanato', teamB: 'Come VaVa', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
   { id: 'M8', day: 25, bracket: 'mid', teamA: 'Cani della Malesia', teamB: 'Napolethanos', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
   { id: 'M9', day: 25, bracket: 'mid', teamA: 'Sesko e Sambia', teamB: 'One Pisa', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },
   { id: 'M4', day: 25, bracket: 'lower', teamA: 'QARABAGGIO', teamB: 'Figli di Putin', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: true },
-  { id: 'M5', day: 25, bracket: 'lower', teamA: 'Beautiful Abbyssinian', teamB: 'Rubin Kebab', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: true },
+  { id: 'M5', day: 25, bracket: 'lower', teamA: 'Frocinone', teamB: 'Rubin Kebab', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: true },
 
   // --- GIORNATA 26 ---
   { id: 'M10', day: 26, bracket: 'mid', teamA: 'Vinc. M6', teamB: 'Vinc. M7', scoreA: null, scoreB: null, winner: null, eliminated: null, eliminationMatch: false },

@@ -8,6 +8,7 @@ import {
   currentSubscription,
   disablePush,
   enablePush,
+  isIOS,
   isPushSupported,
   isStandalone,
   pushConfigured,
@@ -69,6 +70,8 @@ function NotificationsCard() {
   const supported = isPushSupported()
   const configured = pushConfigured()
   const standalone = isStandalone()
+  const ios = isIOS()
+  const iosNeedsInstall = ios && !standalone
 
   useEffect(() => {
     currentSubscription().then((s) => setEnabled(!!s))
@@ -101,7 +104,13 @@ function NotificationsCard() {
         Attiva le notifiche sul dispositivo e scegli quali ricevere qui sotto.
       </p>
 
-      {!supported ? (
+      {iosNeedsInstall ? (
+        <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          📱 Su iPhone le notifiche funzionano solo dopo aver aggiunto l'app alla schermata Home
+          (Condividi → «Aggiungi a Home»), e serve iOS 16.4 o superiore. Riapri l'app dall'icona
+          in Home per attivarle.
+        </p>
+      ) : !supported ? (
         <p className="mt-3 rounded-lg border border-slate-500/40 bg-slate-500/10 px-3 py-2 text-xs text-slate-300">
           Questo browser non supporta le notifiche.
         </p>
@@ -122,13 +131,6 @@ function NotificationsCard() {
         >
           {loading ? <Spinner /> : enabled ? 'Disattiva notifiche' : 'Attiva notifiche'}
         </button>
-      )}
-
-      {!standalone && (
-        <p className="mt-3 text-xs text-slate-500">
-          📱 Su iPhone le notifiche funzionano solo dopo aver aggiunto l'app alla schermata Home
-          (Condividi → «Aggiungi a Home»).
-        </p>
       )}
 
       {supported && configured && (

@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthProvider'
 import { Layout } from './components/Layout'
 import { PageLoader } from './components/ui'
+import { resyncPush } from './lib/push'
 import LoginPage from './pages/Login'
 import ChooseTeamPage from './pages/ChooseTeamPage'
 import AuctionsPage from './pages/Auctions'
@@ -17,6 +19,17 @@ import ProfilePage from './pages/Profile'
 
 export default function App() {
   const { session, manager, loading, isAdmin } = useAuth()
+  const managerId = manager?.id
+
+  useEffect(() => {
+    if (!managerId) return
+    void resyncPush(managerId)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void resyncPush(managerId)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [managerId])
 
   if (loading) {
     return (

@@ -221,38 +221,39 @@ export function resolveTournament(
   matches.sort((a, b) => a.day - b.day)
 
   for (const match of matches) {
-    const dayScores = giornate[String(match.day)]
-    if (!dayScores) continue
-
     const isPlaceholderA = match.teamA.startsWith('Vinc.') || match.teamA.startsWith('Perd.')
     const isPlaceholderB = match.teamB.startsWith('Vinc.') || match.teamB.startsWith('Perd.')
     if (isPlaceholderA || isPlaceholderB) continue
 
+    const dayScores = giornate[String(match.day)] ?? {}
     const scoreA = dayScores[match.teamA]
     const scoreB = dayScores[match.teamB]
-    if (scoreA == null || scoreB == null) continue
+    if (scoreA != null) match.scoreA = scoreA
+    if (scoreB != null) match.scoreB = scoreB
 
-    match.scoreA = scoreA
-    match.scoreB = scoreB
+    if (scoreA != null && scoreB != null) {
+      const result = calculateMatchResult(scoreA, scoreB)
+      match.golA = result.golA
+      match.golB = result.golB
 
-    const result = calculateMatchResult(scoreA, scoreB)
-    match.golA = result.golA
-    match.golB = result.golB
-
-    if (result.golA > result.golB) {
-      match.winner = 'A'
-    } else if (result.golB > result.golA) {
-      match.winner = 'B'
-    } else if (scoreA !== scoreB) {
-      match.winner = scoreA > scoreB ? 'A' : 'B'
-    } else {
-      match.draw = true
-      if (overrides[match.id]) {
-        match.winner = overrides[match.id]
+      if (result.golA > result.golB) {
+        match.winner = 'A'
+      } else if (result.golB > result.golA) {
+        match.winner = 'B'
+      } else if (scoreA !== scoreB) {
+        match.winner = scoreA > scoreB ? 'A' : 'B'
       } else {
-        continue
+        match.draw = true
       }
     }
+
+    // Nessun punteggio per una delle due (es. squadra non più in lega): serve
+    // uno spareggio manuale identico a quello dei pareggi perfetti.
+    if (match.winner == null && overrides[match.id]) {
+      match.winner = overrides[match.id]
+    }
+
+    if (match.winner == null) continue
 
     if (match.eliminationMatch) {
       match.eliminated = match.winner === 'A' ? 'B' : 'A'
