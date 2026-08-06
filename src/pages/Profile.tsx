@@ -201,10 +201,8 @@ function NotificationRow({
           ].join(' ')}
         >
           <span
-            className={[
-              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-              checked ? 'translate-x-[22px]' : 'translate-x-0.5',
-            ].join(' ')}
+            className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+            style={{ transform: checked ? 'translateX(22px)' : 'translateX(0)' }}
           />
         </button>
       )}
