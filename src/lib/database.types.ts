@@ -485,6 +485,7 @@ export type Database = {
       admin_pause_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_resume_auction: { Args: { p_auction: number }; Returns: undefined }
       available_credits: { Args: { p_manager: string }; Returns: number }
+      cancel_autobid: { Args: { p_auction: number }; Returns: undefined }
       claim_team: { Args: { p_team_name: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       list_login_profiles: {

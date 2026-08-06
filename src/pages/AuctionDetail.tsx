@@ -13,7 +13,7 @@ import {
 } from '../lib/queries'
 import { Countdown, PageLoader, QtyInput, RoleBadge, Spinner, StatusBadge } from '../components/ui'
 import { formatDateTime, formatTime, isActive } from '../lib/format'
-import { placeBid, setAutobid, withdraw } from '../lib/api'
+import { cancelAutobid, placeBid, setAutobid, withdraw } from '../lib/api'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
 import { auctionUrl, shareOnWhatsapp } from '../lib/share'
@@ -330,27 +330,54 @@ function AutobidPanel({
   isLeader?: boolean
 }) {
   const toast = useToast()
+  const confirm = useConfirm()
   const qc = useQueryClient()
   const credits = useMyCredits()
   const [open, setOpen] = useState(false)
   const minMax = isLeader ? currentBid : currentBid + 1
-  const [max, setMax] = useState(Math.max(minMax, (myMax ?? 0) + 1))
+  const [max, setMax] = useState(Math.max(minMax, myMax ?? minMax))
   const [loading, setLoading] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  function refresh() {
+    qc.invalidateQueries({ queryKey: ['autobid', auctionId] })
+    qc.invalidateQueries({ queryKey: ['auction', auctionId] })
+    qc.invalidateQueries({ queryKey: ['bids', auctionId] })
+    qc.invalidateQueries({ queryKey: ['credits'] })
+  }
 
   async function onSet() {
     setLoading(true)
     try {
       await setAutobid(auctionId, max)
-      qc.invalidateQueries({ queryKey: ['autobid', auctionId] })
-      qc.invalidateQueries({ queryKey: ['auction', auctionId] })
-      qc.invalidateQueries({ queryKey: ['bids', auctionId] })
-      qc.invalidateQueries({ queryKey: ['credits'] })
+      refresh()
       toast.success('Auto-bid impostato!')
       setOpen(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function onCancel() {
+    const ok = await confirm({
+      title: 'Rimuovere l’auto-bid?',
+      message: 'Non rilancerà più automaticamente per te su questa asta.',
+      confirmLabel: 'Rimuovi',
+      danger: true,
+    })
+    if (!ok) return
+    setCancelling(true)
+    try {
+      await cancelAutobid(auctionId)
+      refresh()
+      toast.success('Auto-bid rimosso')
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -366,15 +393,26 @@ function AutobidPanel({
           )}
         </div>
         {!open && (
-          <button
-            onClick={() => {
-              setMax(Math.max(minMax, (myMax ?? 0) + 1))
-              setOpen(true)
-            }}
-            className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-slate-200"
-          >
-            {myMax != null ? 'Aumenta' : 'Imposta'}
-          </button>
+          <div className="flex gap-1.5">
+            {myMax != null && (
+              <button
+                onClick={onCancel}
+                disabled={cancelling}
+                className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-200 disabled:opacity-50"
+              >
+                {cancelling ? '…' : 'Rimuovi'}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setMax(Math.max(minMax, myMax ?? minMax))
+                setOpen(true)
+              }}
+              className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-slate-200"
+            >
+              {myMax != null ? 'Modifica' : 'Imposta'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -384,7 +422,8 @@ function AutobidPanel({
             <QtyInput value={max} onChange={setMax} min={minMax} size="md" />
           </div>
           <p className="mt-1.5 text-xs text-slate-400">
-            Min {minMax} · disponibili {credits?.available ?? 0}. Il tetto si può solo aumentare.
+            Min {minMax} · disponibili {credits?.available ?? 0}
+            {isLeader ? ' (sei in testa: non può scendere sotto l’offerta attuale)' : ''}.
           </p>
           <div className="mt-3 flex gap-2">
             <button

@@ -27,6 +27,11 @@ export async function setAutobid(auctionId: number, max: number): Promise<void> 
   if (error) throw new Error(error.message)
 }
 
+export async function cancelAutobid(auctionId: number): Promise<void> {
+  const { error } = await supabase.rpc('cancel_autobid', { p_auction: auctionId })
+  if (error) throw new Error(error.message)
+}
+
 export async function withdraw(auctionId: number): Promise<void> {
   const { error } = await supabase.rpc('withdraw', { p_auction: auctionId })
   if (error) throw new Error(error.message)

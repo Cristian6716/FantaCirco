@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
-import { useAuctions, useCredits, useManagers, usePlayers, type Auction } from '../lib/queries'
+import { useAuctions, useCredits, useManagers, usePlayers, type Auction, type Manager } from '../lib/queries'
 import { PageLoader, RoleBadge, Spinner, StatusBadge } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
@@ -29,6 +29,8 @@ import {
   usePartite,
   usePronostici,
   usePunteggiGiornata,
+  type Partita,
+  type Pronostico,
 } from '../lib/leagueQueries'
 import { calculateMatchResult, resolveTournament } from '../lib/tornei'
 import { initialMatches } from '../lib/torneoData'
@@ -1007,6 +1009,13 @@ function GiornateTab() {
         </button>
       </div>
 
+      {/* Chi ha pronosticato cosa */}
+      <PronosticiList
+        squadre={squadre}
+        partite={partiteGiornata}
+        pronostici={(pronostici ?? []).filter((p) => p.giornata === current)}
+      />
+
       {/* Punteggi fanta */}
       <div className="rounded-xl border border-border bg-surface p-3">
         <h3 className="text-sm font-semibold text-slate-200">Punteggi fanta di giornata</h3>
@@ -1159,6 +1168,88 @@ function GiornataPickerAdmin({
       >
         ›
       </button>
+    </div>
+  )
+}
+
+function PronosticiList({
+  squadre,
+  partite,
+  pronostici,
+}: {
+  squadre: Manager[]
+  partite: Partita[]
+  pronostici: Pronostico[]
+}) {
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  const byManager = useMemo(() => {
+    const map = new Map<string, Pronostico[]>()
+    for (const p of pronostici) {
+      const arr = map.get(p.manager_id) ?? []
+      arr.push(p)
+      map.set(p.manager_id, arr)
+    }
+    return map
+  }, [pronostici])
+
+  const partiteMap = useMemo(() => new Map(partite.map((p) => [p.id, p])), [partite])
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <h3 className="text-sm font-semibold text-slate-200">Chi ha pronosticato</h3>
+      {partite.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-500">Nessuna partita in questa giornata.</p>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          {squadre.map((m) => {
+            const mine = byManager.get(m.id!) ?? []
+            const done = mine.length
+            const total = partite.length
+            const open = openId === m.id
+            return (
+              <div key={m.id!} className="overflow-hidden rounded-lg border border-border bg-surface-2">
+                <button
+                  onClick={() => setOpenId(open ? null : (m.id ?? null))}
+                  className="flex w-full items-center justify-between px-2.5 py-2 text-left"
+                >
+                  <span className="text-sm text-white">{m.team_name || m.display_name}</span>
+                  <span
+                    className={[
+                      'text-xs font-semibold',
+                      done === 0 ? 'text-slate-500' : done === total ? 'text-emerald-300' : 'text-amber-300',
+                    ].join(' ')}
+                  >
+                    {done}/{total}
+                  </span>
+                </button>
+                {open && (
+                  <div className="space-y-1 border-t border-border px-2.5 py-2">
+                    {mine.length === 0 ? (
+                      <p className="text-xs text-slate-500">Nessun pronostico.</p>
+                    ) : (
+                      mine
+                        .slice()
+                        .sort((a, b) => (partiteMap.get(a.partita_id)?.ordine ?? 0) - (partiteMap.get(b.partita_id)?.ordine ?? 0))
+                        .map((p) => {
+                          const partita = partiteMap.get(p.partita_id)
+                          if (!partita) return null
+                          return (
+                            <p key={p.partita_id} className="text-xs text-slate-300">
+                              {partita.casa} - {partita.trasferta}: <b className="text-white">{p.pronostico_1x2}</b>
+                              {' · '}
+                              {p.pronostico_ou}
+                            </p>
+                          )
+                        })
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
