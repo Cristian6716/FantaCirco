@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useMyCredits, useNotificationPreferences, useSetNotificationPreference } from '../lib/queries'
+import { useMyRanking } from '../lib/rankingQueries'
 import { useToast } from '../components/Toast'
 import { Spinner } from '../components/ui'
 import { changeMyPassword } from '../lib/api'
@@ -17,6 +18,7 @@ import {
 export default function ProfilePage() {
   const { manager, signOut } = useAuth()
   const credits = useMyCredits()
+  const ranking = useMyRanking()
   const toast = useToast()
 
   return (
@@ -39,6 +41,16 @@ export default function ProfilePage() {
           <Stat label="Disponibili" value={credits?.available} color="text-accent" />
         </div>
       </div>
+
+      {ranking && (
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-200">Ranking generale 📊</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{ranking.pos}° posizione su tutte le squadre</p>
+          </div>
+          <p className="text-2xl font-bold text-accent">{ranking.totale}</p>
+        </div>
+      )}
 
       <NotificationsCard />
       <PasswordCard onDone={() => toast.success('Password aggiornata')} />

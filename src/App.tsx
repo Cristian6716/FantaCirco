@@ -14,6 +14,7 @@ import ClassificaPage from './pages/pronostici/ClassificaPage'
 import StoricoPage from './pages/pronostici/StoricoPage'
 import PodioPage from './pages/pronostici/PodioPage'
 import TorneiPage from './pages/Tornei'
+import RankingPage from './pages/Ranking'
 import AdminPage from './pages/Admin'
 import ProfilePage from './pages/Profile'
 
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/pronostici/storico" element={<StoricoPage />} />
         <Route path="/pronostici/podio" element={<PodioPage />} />
         <Route path="/tornei" element={<TorneiPage />} />
+        <Route path="/ranking" element={<RankingPage />} />
         <Route path="/profilo" element={<ProfilePage />} />
         <Route path="/admin" element={isAdmin ? <AdminPage /> : <Navigate to="/asta/aste" replace />} />
         <Route path="*" element={<Navigate to="/asta/aste" replace />} />

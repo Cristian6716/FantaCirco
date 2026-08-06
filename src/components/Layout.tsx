@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { useMyCredits, useRealtime } from '../lib/queries'
 import { useLeagueRealtime } from '../lib/leagueQueries'
 import { usePodioRealtime } from '../lib/podio'
+import { useRankingRealtime } from '../lib/rankingQueries'
 
 function CreditStat({ label, value, color }: { label: string; value: number | null | undefined; color: string }) {
   return (
@@ -158,6 +159,7 @@ const SECTIONS: Section[] = [
     ],
   },
   { key: 'tornei', label: 'Tornei', icon: '🏆', to: '/tornei' },
+  { key: 'ranking', label: 'Ranking', icon: '📊', to: '/ranking' },
 ]
 
 /** Elenco sezioni + link di piede, condiviso dal drawer mobile e dalla sidebar desktop. */
@@ -251,6 +253,7 @@ export function Layout({ children }: { children: ReactNode }) {
   useRealtime()
   useLeagueRealtime()
   usePodioRealtime()
+  useRankingRealtime()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (

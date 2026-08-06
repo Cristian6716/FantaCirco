@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -52,7 +54,29 @@ export type Database = {
           withdrawn?: boolean
           withdrawn_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "auction_participants_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_participants_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_participants_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       auctions: {
         Row: {
@@ -103,7 +127,57 @@ export type Database = {
           status?: Database["public"]["Enums"]["auction_status"]
           winner_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "auctions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auctions_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       autobids: {
         Row: {
@@ -130,7 +204,29 @@ export type Database = {
           max_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "autobids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autobids_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autobids_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bids: {
         Row: {
@@ -157,6 +253,130 @@ export type Database = {
           is_auto?: boolean
           manager_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "bids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "auctions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bids_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bids_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checkins: {
+        Row: {
+          adjustments: Json
+          ai_summary: string | null
+          created_at: string
+          data_snapshot: Json
+          id: string
+          period_end: string | null
+          period_start: string | null
+          user_id: string
+        }
+        Insert: {
+          adjustments?: Json
+          ai_summary?: string | null
+          created_at?: string
+          data_snapshot?: Json
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          user_id: string
+        }
+        Update: {
+          adjustments?: Json
+          ai_summary?: string | null
+          created_at?: string
+          data_snapshot?: Json
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coach_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["message_role"]
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["message_role"]
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["message_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exercises: {
+        Row: {
+          category: string | null
+          created_at: string
+          equipment: string | null
+          external_id: string | null
+          id: string
+          images: string[]
+          instructions: string | null
+          level: string | null
+          muscle_group: string | null
+          name: string
+          primary_muscles: string[]
+          secondary_muscles: string[]
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          equipment?: string | null
+          external_id?: string | null
+          id?: string
+          images?: string[]
+          instructions?: string | null
+          level?: string | null
+          muscle_group?: string | null
+          name: string
+          primary_muscles?: string[]
+          secondary_muscles?: string[]
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          equipment?: string | null
+          external_id?: string | null
+          id?: string
+          images?: string[]
+          instructions?: string | null
+          level?: string | null
+          muscle_group?: string | null
+          name?: string
+          primary_muscles?: string[]
+          secondary_muscles?: string[]
+        }
         Relationships: []
       }
       giornate: {
@@ -174,6 +394,80 @@ export type Database = {
           created_at?: string
           numero?: number
           pronostici_chiusi?: boolean
+        }
+        Relationships: []
+      }
+      habit_logs: {
+        Row: {
+          created_at: string
+          date: string
+          done: boolean
+          habit_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          done?: boolean
+          habit_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          done?: boolean
+          habit_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          consolidated_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          rationale: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["habit_status"]
+          target_frequency: string | null
+          user_id: string
+        }
+        Insert: {
+          consolidated_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          rationale?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["habit_status"]
+          target_frequency?: string | null
+          user_id: string
+        }
+        Update: {
+          consolidated_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          rationale?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["habit_status"]
+          target_frequency?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -229,7 +523,22 @@ export type Database = {
           notify_phase2_start?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: true
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_preferences_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: true
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partite: {
         Row: {
@@ -268,7 +577,43 @@ export type Database = {
           trasferta?: string
           trasferta_manager?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "partite_casa_manager_fkey"
+            columns: ["casa_manager"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partite_casa_manager_fkey"
+            columns: ["casa_manager"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partite_giornata_fkey"
+            columns: ["giornata"]
+            isOneToOne: false
+            referencedRelation: "giornate"
+            referencedColumns: ["numero"]
+          },
+          {
+            foreignKeyName: "partite_trasferta_manager_fkey"
+            columns: ["trasferta_manager"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partite_trasferta_manager_fkey"
+            columns: ["trasferta_manager"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       players: {
         Row: {
@@ -298,7 +643,22 @@ export type Database = {
           roles?: string[]
           status?: Database["public"]["Enums"]["player_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "players_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "players_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       podio_rounds: {
         Row: {
@@ -311,14 +671,14 @@ export type Database = {
         Insert: {
           closed_at?: string | null
           created_at?: string
-          id?: never
+          id?: number
           numero: number
           status?: string
         }
         Update: {
           closed_at?: string | null
           created_at?: string
-          id?: never
+          id?: number
           numero?: number
           status?: string
         }
@@ -352,6 +712,130 @@ export type Database = {
           round_id?: number
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "podio_votes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos1_fkey"
+            columns: ["pos1"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos1_fkey"
+            columns: ["pos1"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos2_fkey"
+            columns: ["pos2"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos2_fkey"
+            columns: ["pos2"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos3_fkey"
+            columns: ["pos3"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_pos3_fkey"
+            columns: ["pos3"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "podio_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          timezone: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          timezone?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          timezone?: string
+        }
+        Relationships: []
+      }
+      progress_entries: {
+        Row: {
+          created_at: string
+          date: string
+          energy: number | null
+          id: string
+          measurements: Json
+          mood: number | null
+          photo_path: string | null
+          sleep: number | null
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          energy?: number | null
+          id?: string
+          measurements?: Json
+          mood?: number | null
+          photo_path?: string | null
+          sleep?: number | null
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          energy?: number | null
+          id?: string
+          measurements?: Json
+          mood?: number | null
+          photo_path?: string | null
+          sleep?: number | null
+          user_id?: string
+          weight?: number | null
+        }
         Relationships: []
       }
       pronostici: {
@@ -382,7 +866,29 @@ export type Database = {
           pronostico_ou?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pronostici_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pronostici_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pronostici_partita_id_fkey"
+            columns: ["partita_id"]
+            isOneToOne: false
+            referencedRelation: "partite"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       punteggi_giornata: {
         Row: {
@@ -400,7 +906,29 @@ export type Database = {
           manager_id?: string
           punteggio?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "punteggi_giornata_giornata_fkey"
+            columns: ["giornata"]
+            isOneToOne: false
+            referencedRelation: "giornate"
+            referencedColumns: ["numero"]
+          },
+          {
+            foreignKeyName: "punteggi_giornata_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "punteggi_giornata_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_outbox: {
         Row: {
@@ -439,7 +967,22 @@ export type Database = {
           title?: string
           url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "push_outbox_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -466,7 +1009,130 @@ export type Database = {
           manager_id?: string
           p256dh?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ranking_generale: {
+        Row: {
+          campionato_pos: number
+          campionato_pts: number
+          manager_id: string | null
+          manager_name: string | null
+          pos: number
+          royale_pos: number
+          royale_pts: number
+          team_name: string
+          torneo_campione: boolean
+          torneo_detail: string
+          torneo_pts: number
+          totale: number
+        }
+        Insert: {
+          campionato_pos: number
+          campionato_pts: number
+          manager_id?: string | null
+          manager_name?: string | null
+          pos: number
+          royale_pos: number
+          royale_pts: number
+          team_name: string
+          torneo_campione?: boolean
+          torneo_detail: string
+          torneo_pts: number
+          totale: number
+        }
+        Update: {
+          campionato_pos?: number
+          campionato_pts?: number
+          manager_id?: string | null
+          manager_name?: string | null
+          pos?: number
+          royale_pos?: number
+          royale_pts?: number
+          team_name?: string
+          torneo_campione?: boolean
+          torneo_detail?: string
+          torneo_pts?: number
+          totale?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ranking_generale_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ranking_generale_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      set_logs: {
+        Row: {
+          created_at: string
+          exercise_id: string | null
+          id: string
+          reps: number | null
+          rpe: number | null
+          session_id: string
+          set_index: number
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_id?: string | null
+          id?: string
+          reps?: number | null
+          rpe?: number | null
+          session_id: string
+          set_index: number
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          exercise_id?: string | null
+          id?: string
+          reps?: number | null
+          rpe?: number | null
+          session_id?: string
+          set_index?: number
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "set_logs_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "set_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       torneo_overrides: {
         Row: {
@@ -486,6 +1152,172 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profile: {
+        Row: {
+          active_habit_id: string | null
+          adherence_summary: Json
+          coach_notes: string | null
+          created_at: string
+          current_training_state: Json
+          days_per_week: number | null
+          equipment: Json
+          experience_level:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          goal: Database["public"]["Enums"]["goal_type"] | null
+          injuries: string | null
+          learned_preferences: Json
+          location: Database["public"]["Enums"]["training_location"] | null
+          motivation_why: string | null
+          nutrition_baseline: string | null
+          onboarding_completed: boolean
+          past_barriers: string | null
+          session_minutes: number | null
+          summary: string | null
+          updated_at: string
+          user_id: string
+          whats_not: string | null
+          whats_working: string | null
+        }
+        Insert: {
+          active_habit_id?: string | null
+          adherence_summary?: Json
+          coach_notes?: string | null
+          created_at?: string
+          current_training_state?: Json
+          days_per_week?: number | null
+          equipment?: Json
+          experience_level?:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          goal?: Database["public"]["Enums"]["goal_type"] | null
+          injuries?: string | null
+          learned_preferences?: Json
+          location?: Database["public"]["Enums"]["training_location"] | null
+          motivation_why?: string | null
+          nutrition_baseline?: string | null
+          onboarding_completed?: boolean
+          past_barriers?: string | null
+          session_minutes?: number | null
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+          whats_not?: string | null
+          whats_working?: string | null
+        }
+        Update: {
+          active_habit_id?: string | null
+          adherence_summary?: Json
+          coach_notes?: string | null
+          created_at?: string
+          current_training_state?: Json
+          days_per_week?: number | null
+          equipment?: Json
+          experience_level?:
+            | Database["public"]["Enums"]["experience_level"]
+            | null
+          goal?: Database["public"]["Enums"]["goal_type"] | null
+          injuries?: string | null
+          learned_preferences?: Json
+          location?: Database["public"]["Enums"]["training_location"] | null
+          motivation_why?: string | null
+          nutrition_baseline?: string | null
+          onboarding_completed?: boolean
+          past_barriers?: string | null
+          session_minutes?: number | null
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+          whats_not?: string | null
+          whats_working?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profile_active_habit_fk"
+            columns: ["active_habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_plans: {
+        Row: {
+          created_at: string
+          goal: Database["public"]["Enums"]["goal_type"] | null
+          id: string
+          is_active: boolean
+          payload: Json
+          rationale: string | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          goal?: Database["public"]["Enums"]["goal_type"] | null
+          id?: string
+          is_active?: boolean
+          payload: Json
+          rationale?: string | null
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          goal?: Database["public"]["Enums"]["goal_type"] | null
+          id?: string
+          is_active?: boolean
+          payload?: Json
+          rationale?: string | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      workout_sessions: {
+        Row: {
+          created_at: string
+          date: string
+          day_label: string | null
+          id: string
+          notes: string | null
+          plan_id: string | null
+          rpe_session: number | null
+          status: Database["public"]["Enums"]["session_status"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          day_label?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          rpe_session?: number | null
+          status?: Database["public"]["Enums"]["session_status"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day_label?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          rpe_session?: number | null
+          status?: Database["public"]["Enums"]["session_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_sessions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_manager_credits: {
@@ -503,6 +1335,38 @@ export type Database = {
       }
     }
     Functions: {
+      _advance_auction: { Args: { p_auction: number }; Returns: undefined }
+      _end_auction: { Args: { p_auction: number }; Returns: undefined }
+      _maybe_end_no_challengers: {
+        Args: { p_auction: number }
+        Returns: undefined
+      }
+      _notify: {
+        Args: {
+          p_body: string
+          p_manager: string
+          p_tag?: string
+          p_title: string
+          p_url?: string
+        }
+        Returns: undefined
+      }
+      _notify_checked: {
+        Args: {
+          p_body: string
+          p_kind: string
+          p_manager: string
+          p_tag?: string
+          p_title: string
+          p_url?: string
+        }
+        Returns: undefined
+      }
+      _resolve_autobids: { Args: { p_auction: number }; Returns: undefined }
+      _revert_auction_effects: {
+        Args: { p_auction: number }
+        Returns: undefined
+      }
       admin_cancel_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_delete_all_auctions: { Args: never; Returns: undefined }
       admin_delete_auction: { Args: { p_auction: number }; Returns: undefined }
@@ -543,7 +1407,23 @@ export type Database = {
     }
     Enums: {
       auction_status: "phase1" | "phase2" | "paused" | "ended" | "cancelled"
+      experience_level:
+        | "principiante_assoluto"
+        | "principiante"
+        | "intermedio_basso"
+        | "intermedio"
+        | "avanzato"
+      goal_type:
+        | "dimagrire"
+        | "ingrassare"
+        | "mantenere"
+        | "rimodellare"
+        | "forza"
+      habit_status: "proposed" | "active" | "consolidated" | "dropped"
+      message_role: "user" | "assistant"
       player_status: "available" | "in_auction" | "assigned"
+      session_status: "planned" | "done" | "skipped"
+      training_location: "gym" | "home" | "both"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -651,11 +1531,46 @@ export type Enums<
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
 export const Constants = {
   public: {
     Enums: {
       auction_status: ["phase1", "phase2", "paused", "ended", "cancelled"],
+      experience_level: [
+        "principiante_assoluto",
+        "principiante",
+        "intermedio_basso",
+        "intermedio",
+        "avanzato",
+      ],
+      goal_type: [
+        "dimagrire",
+        "ingrassare",
+        "mantenere",
+        "rimodellare",
+        "forza",
+      ],
+      habit_status: ["proposed", "active", "consolidated", "dropped"],
+      message_role: ["user", "assistant"],
       player_status: ["available", "in_auction", "assigned"],
+      session_status: ["planned", "done", "skipped"],
+      training_location: ["gym", "home", "both"],
     },
   },
 } as const
