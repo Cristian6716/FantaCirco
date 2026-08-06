@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import * as XLSX from 'xlsx'
 import { useAuctions, useCredits, useManagers, usePlayers, type Auction } from '../lib/queries'
 import { PageLoader, RoleBadge, Spinner, StatusBadge } from '../components/ui'
 import { useToast } from '../components/Toast'
@@ -16,7 +17,7 @@ import {
   updateManagerCredits,
   type NewPlayer,
 } from '../lib/api'
-import { isActive, parseRoles } from '../lib/format'
+import { isActive, MANTRA_ROLES, parseRoles } from '../lib/format'
 import {
   buildGiornateScores,
   useAdminSetOverride,
@@ -368,24 +369,81 @@ function parsePlayers(text: string): NewPlayer[] {
     .filter((p) => p.name)
 }
 
+// Legge un file .xlsx (es. il listone svincolati Mantra) riconoscendo le colonne
+// da intestazione: Nome, Sq., R.MANTRA, e (se presente) "Fuori lista" per escludere
+// i giocatori non tesserabili quest'anno.
+async function parseXlsxPlayers(file: File): Promise<NewPlayer[]> {
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const sheet = wb.Sheets[wb.SheetNames[0]]
+  if (!sheet) return []
+  const rows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+  if (rows.length === 0) return []
+
+  const header = rows[0].map((h) => String(h ?? '').trim().toLowerCase())
+  const idxName = header.findIndex((h) => h === 'nome' || h === 'name')
+  const idxTeam = header.findIndex((h) => h === 'sq.' || h === 'squadra' || h === 'team')
+  // "R.MANTRA" ha priorità sulla generica "R." (ruolo classico), altrimenti finirebbe
+  // per matchare quest'ultima essendo prima in colonna.
+  const idxRoles =
+    header.findIndex((h) => h.includes('mantra')) !== -1
+      ? header.findIndex((h) => h.includes('mantra'))
+      : header.findIndex((h) => h === 'r.' || h === 'ruolo' || h === 'ruoli')
+  const idxOut = header.findIndex((h) => h.includes('fuori lista'))
+  if (idxName === -1) return []
+
+  const out: NewPlayer[] = []
+  for (const row of rows.slice(1)) {
+    if (idxOut !== -1 && String(row[idxOut] ?? '').trim() !== '') continue // esclude i "fuori lista"
+    const name = String(row[idxName] ?? '').trim()
+    if (!name) continue
+    const team = idxTeam !== -1 ? String(row[idxTeam] ?? '').trim() || null : null
+    const roles = idxRoles !== -1 ? parseRoles(String(row[idxRoles] ?? '')) : []
+    out.push({ name, real_team: team, roles })
+  }
+  return out
+}
+
 function PlayersTab() {
   const { data: players, isLoading } = usePlayers()
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
   const [text, setText] = useState('')
+  const [xlsxRows, setXlsxRows] = useState<NewPlayer[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const parsed = useMemo(() => parsePlayers(text), [text])
+  const parsed = useMemo(() => xlsxRows ?? parsePlayers(text), [xlsxRows, text])
 
-  function onFileSelected(e: ChangeEvent<HTMLInputElement>) {
+  function invalidatePlayers() {
+    qc.invalidateQueries({ queryKey: ['players'] })
+  }
+
+  async function onFileSelected(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = '' // permette di ricaricare lo stesso file una seconda volta
     if (!file) return
+    const isExcel = /\.xlsx?$/i.test(file.name)
+    if (isExcel) {
+      try {
+        const rows = await parseXlsxPlayers(file)
+        if (rows.length === 0) {
+          toast.error('Nessun giocatore riconosciuto: colonne attese "Nome", "Sq.", "R.MANTRA"')
+          return
+        }
+        setXlsxRows(rows)
+        setText('')
+        setFileName(file.name)
+      } catch {
+        toast.error('Impossibile leggere il file Excel')
+      }
+      return
+    }
     const reader = new FileReader()
     reader.onload = () => {
+      setXlsxRows(null)
       setText(String(reader.result ?? ''))
       setFileName(file.name)
     }
@@ -400,8 +458,9 @@ function PlayersTab() {
       const n = await importPlayers(parsed)
       toast.success(`${n} giocatori importati`)
       setText('')
+      setXlsxRows(null)
       setFileName(null)
-      qc.invalidateQueries({ queryKey: ['players'] })
+      invalidatePlayers()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
     } finally {
@@ -433,16 +492,17 @@ function PlayersTab() {
       <div className="rounded-xl border border-border bg-surface p-3">
         <h2 className="text-sm font-semibold text-slate-200">Importa svincolati</h2>
         <p className="mt-1 text-xs text-slate-400">
-          Un giocatore per riga: <code className="text-slate-300">Nome, Squadra, Ruoli</code>{' '}
-          (ruoli Mantra, anche multipli es. <code className="text-slate-300">Dd/Ds</code> o{' '}
-          <code className="text-slate-300">M;C</code>). Squadra e ruoli facoltativi. Puoi caricare
-          un file CSV oppure incollare il testo qui sotto.
+          Carica il listone Excel degli svincolati (colonne "Nome", "Sq.", "R.MANTRA"; i giocatori
+          "Fuori lista" vengono esclusi automaticamente), oppure incolla/carica un CSV con un
+          giocatore per riga: <code className="text-slate-300">Nome, Squadra, Ruoli</code> (ruoli
+          Mantra, anche multipli es. <code className="text-slate-300">Dd/Ds</code> o{' '}
+          <code className="text-slate-300">M;C</code>). Squadra e ruoli facoltativi.
         </p>
 
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={onFileSelected}
           className="hidden"
         />
@@ -450,12 +510,13 @@ function PlayersTab() {
           onClick={() => fileInputRef.current?.click()}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 py-2.5 text-sm font-semibold text-slate-200"
         >
-          📄 {fileName ? `File: ${fileName}` : 'Carica file CSV'}
+          📄 {fileName ? `File: ${fileName}` : 'Carica file Excel o CSV'}
         </button>
 
         <textarea
           value={text}
           onChange={(e) => {
+            setXlsxRows(null)
             setText(e.target.value)
             setFileName(null)
           }}
@@ -471,6 +532,8 @@ function PlayersTab() {
           {loading ? <Spinner /> : `Importa ${parsed.length || ''} giocatori`}
         </button>
       </div>
+
+      <AddSinglePlayerForm onAdded={invalidatePlayers} />
 
       <div className="space-y-2">
         {(players ?? []).map((p) => (
@@ -493,6 +556,92 @@ function PlayersTab() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function AddSinglePlayerForm({ onAdded }: { onAdded: () => void }) {
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [team, setTeam] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+
+  function toggleRole(r: string) {
+    setRoles((rs) => (rs.includes(r) ? rs.filter((x) => x !== r) : [...rs, r]))
+  }
+
+  function reset() {
+    setName('')
+    setTeam('')
+    setRoles([])
+  }
+
+  async function submit() {
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      await importPlayers([{ name: name.trim(), real_team: team.trim() || null, roles }])
+      toast.success(`«${name.trim()}» aggiunto`)
+      reset()
+      onAdded()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-sm font-semibold text-slate-200"
+      >
+        <span>+ Aggiungi un giocatore</span>
+        <span className="text-slate-500">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <input
+            className={inputCls}
+            placeholder="Nome giocatore"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className={inputCls}
+            placeholder="Squadra reale (facoltativo)"
+            value={team}
+            onChange={(e) => setTeam(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {MANTRA_ROLES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => toggleRole(r)}
+                className={[
+                  'rounded-lg border px-2.5 py-1.5 text-xs font-semibold',
+                  roles.includes(r)
+                    ? 'border-accent/60 bg-accent/15 text-accent'
+                    : 'border-border bg-surface-2 text-slate-300',
+                ].join(' ')}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={submit}
+            disabled={saving || !name.trim()}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-strong py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? <Spinner /> : 'Aggiungi giocatore'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
