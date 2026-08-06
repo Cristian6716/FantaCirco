@@ -11,6 +11,7 @@ export type Bid = Tables<'bids'>
 export type Participant = Tables<'auction_participants'>
 export type Autobid = Tables<'autobids'>
 export type ManagerCredits = Tables<'v_manager_credits'>
+export type NotificationPreferences = Tables<'notification_preferences'>
 
 export function useManagers() {
   return useQuery({
@@ -163,6 +164,47 @@ export function useMyAutobid(auctionId: number | undefined) {
       return data
     },
     staleTime: 2_000,
+  })
+}
+
+const defaultNotificationPrefs = {
+  notify_outbid_phase1: true,
+  notify_phase2_start: true,
+  notify_outbid_phase2: true,
+}
+
+export function useNotificationPreferences() {
+  const { manager } = useAuth()
+  return useQuery({
+    queryKey: ['notification-preferences', manager?.id],
+    enabled: !!manager?.id,
+    queryFn: async (): Promise<NotificationPreferences> => {
+      const { data, error } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('manager_id', manager!.id)
+        .maybeSingle()
+      if (error) throw error
+      return data ?? { manager_id: manager!.id, updated_at: new Date().toISOString(), ...defaultNotificationPrefs }
+    },
+    staleTime: 30_000,
+  })
+}
+
+export function useSetNotificationPreference() {
+  const { manager } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (patch: Partial<typeof defaultNotificationPrefs>) => {
+      if (!manager) throw new Error('Non autenticato')
+      const { error } = await supabase
+        .from('notification_preferences')
+        .upsert({ manager_id: manager.id, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'manager_id' })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notification-preferences'] })
+    },
   })
 }
 

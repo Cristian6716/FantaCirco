@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
-import { useMyCredits } from '../lib/queries'
+import { useMyCredits, useNotificationPreferences, useSetNotificationPreference } from '../lib/queries'
 import { useToast } from '../components/Toast'
 import { Spinner } from '../components/ui'
 import { changeMyPassword } from '../lib/api'
@@ -98,7 +98,7 @@ function NotificationsCard() {
     <div className="rounded-2xl border border-border bg-surface p-4">
       <h2 className="text-sm font-semibold text-slate-200">Notifiche push 🔔</h2>
       <p className="mt-1 text-xs text-slate-400">
-        Ti avvisiamo quando vieni superato e quando termina una fase da 24h.
+        Attiva le notifiche sul dispositivo e scegli quali ricevere qui sotto.
       </p>
 
       {!supported ? (
@@ -130,7 +130,115 @@ function NotificationsCard() {
           (Condividi → «Aggiungi a Home»).
         </p>
       )}
+
+      {supported && configured && (
+        <div className="mt-4 space-y-2 border-t border-border pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Tipi di notifica
+          </p>
+
+          <NotificationRow
+            label="Inizio nuova asta"
+            hint="Sempre attiva per tutti, non disattivabile."
+            locked
+          />
+          <NotificationToggleRow
+            field="notify_outbid_phase1"
+            label="Superato (prime 24h)"
+            hint="Quando qualcuno rilancia sopra la tua offerta nella fase 1."
+          />
+          <NotificationToggleRow
+            field="notify_phase2_start"
+            label="Fine prime 24h"
+            hint="Quando l'asta entra nelle seconde 24h (fase 2)."
+          />
+          <NotificationToggleRow
+            field="notify_outbid_phase2"
+            label="Superato (seconde 24h)"
+            hint="Quando qualcuno rilancia sopra la tua offerta nella fase 2."
+          />
+        </div>
+      )}
     </div>
+  )
+}
+
+function NotificationRow({
+  label,
+  hint,
+  checked,
+  locked,
+  onToggle,
+  loading,
+}: {
+  label: string
+  hint: string
+  checked?: boolean
+  locked?: boolean
+  onToggle?: () => void
+  loading?: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-1">
+      <div className="min-w-0">
+        <p className="text-sm text-slate-200">{label}</p>
+        <p className="text-xs text-slate-500">{hint}</p>
+      </div>
+      {locked ? (
+        <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+          Sempre attiva
+        </span>
+      ) : (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!!checked}
+          disabled={loading}
+          onClick={onToggle}
+          className={[
+            'relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60',
+            checked ? 'bg-accent-strong' : 'bg-surface-2 border border-border',
+          ].join(' ')}
+        >
+          <span
+            className={[
+              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+              checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+            ].join(' ')}
+          />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function NotificationToggleRow({
+  field,
+  label,
+  hint,
+}: {
+  field: 'notify_outbid_phase1' | 'notify_phase2_start' | 'notify_outbid_phase2'
+  label: string
+  hint: string
+}) {
+  const toast = useToast()
+  const { data: prefs } = useNotificationPreferences()
+  const setPref = useSetNotificationPreference()
+  const checked = prefs?.[field] ?? true
+
+  return (
+    <NotificationRow
+      label={label}
+      hint={hint}
+      checked={checked}
+      loading={setPref.isPending}
+      onToggle={() =>
+        setPref.mutate(
+          { [field]: !checked },
+          { onError: (err) => toast.error(err instanceof Error ? err.message : 'Errore') },
+        )
+      }
+    />
   )
 }
 

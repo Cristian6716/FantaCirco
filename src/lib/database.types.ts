@@ -207,6 +207,30 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          manager_id: string
+          notify_outbid_phase1: boolean
+          notify_outbid_phase2: boolean
+          notify_phase2_start: boolean
+          updated_at: string
+        }
+        Insert: {
+          manager_id: string
+          notify_outbid_phase1?: boolean
+          notify_outbid_phase2?: boolean
+          notify_phase2_start?: boolean
+          updated_at?: string
+        }
+        Update: {
+          manager_id?: string
+          notify_outbid_phase1?: boolean
+          notify_outbid_phase2?: boolean
+          notify_phase2_start?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partite: {
         Row: {
           casa: string
