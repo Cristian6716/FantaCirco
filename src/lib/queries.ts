@@ -157,6 +157,7 @@ export function useMyAutobid(auctionId: number | undefined) {
         .select('*')
         .eq('auction_id', auctionId!)
         .eq('manager_id', manager!.id)
+        .eq('active', true)
         .maybeSingle()
       if (error) throw error
       return data
