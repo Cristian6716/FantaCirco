@@ -32,7 +32,7 @@ import {
   type Partita,
   type Pronostico,
 } from '../lib/leagueQueries'
-import { calculateMatchResult, resolveTournament } from '../lib/tornei'
+import { calculateMatchResult, resolveTournament, type TorneoOverrideInput } from '../lib/tornei'
 import { initialMatches } from '../lib/torneoData'
 import {
   computePodioClassifica,
@@ -897,8 +897,9 @@ function GiornateTab() {
   const spareggi = useMemo(() => {
     if (!managers || !punteggi) return []
     const scoresMap = buildGiornateScores(punteggi, managers)
-    const ovr: Record<string, 'A' | 'B'> = {}
-    for (const o of overrides ?? []) ovr[o.match_id] = o.winner as 'A' | 'B'
+    const ovr: Record<string, TorneoOverrideInput> = {}
+    for (const o of overrides ?? [])
+      ovr[o.match_id] = { winner: o.winner as 'A' | 'B', golA: o.gol_a, golB: o.gol_b }
     const resolved = resolveTournament(initialMatches, scoresMap, ovr)
     return resolved.filter((m) => m.day === current && m.draw)
   }, [managers, punteggi, overrides, current])

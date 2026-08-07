@@ -207,6 +207,13 @@ export interface TorneoMatch {
   label?: string
 }
 
+export interface TorneoOverrideInput {
+  winner: 'A' | 'B'
+  /** Gol di sola visualizzazione, per quando manca il punteggio reale di un lato. */
+  golA?: number | null
+  golB?: number | null
+}
+
 /**
  * Risolve il bracket in base ai punteggi delle giornate.
  * Usa lo stesso sistema di gol/fasce della Battle Royale; in caso di parità
@@ -215,7 +222,7 @@ export interface TorneoMatch {
 export function resolveTournament(
   initialMatches: TorneoMatch[],
   giornate: GiornateScores,
-  overrides: Record<string, 'A' | 'B'> = {},
+  overrides: Record<string, TorneoOverrideInput> = {},
 ): TorneoMatch[] {
   const matches: TorneoMatch[] = JSON.parse(JSON.stringify(initialMatches))
   matches.sort((a, b) => a.day - b.day)
@@ -248,9 +255,13 @@ export function resolveTournament(
     }
 
     // Nessun punteggio per una delle due (es. squadra non più in lega): serve
-    // uno spareggio manuale identico a quello dei pareggi perfetti.
-    if (match.winner == null && overrides[match.id]) {
-      match.winner = overrides[match.id]
+    // uno spareggio manuale identico a quello dei pareggi perfetti. golA/golB
+    // dell'override sono di sola visualizzazione (non usati per calcolare nulla).
+    const ovr = overrides[match.id]
+    if (match.winner == null && ovr) {
+      match.winner = ovr.winner
+      if (match.golA == null && ovr.golA != null) match.golA = ovr.golA
+      if (match.golB == null && ovr.golB != null) match.golB = ovr.golB
     }
 
     if (match.winner == null) continue

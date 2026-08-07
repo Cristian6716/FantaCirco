@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useManagers } from '../lib/queries'
 import { buildGiornateScores, useOverrides, usePunteggiGiornata } from '../lib/leagueQueries'
-import { calculateStandings, resolveTournament, type ClassificaRow, type TorneoMatch } from '../lib/tornei'
+import {
+  calculateStandings,
+  resolveTournament,
+  type ClassificaRow,
+  type TorneoMatch,
+  type TorneoOverrideInput,
+} from '../lib/tornei'
 import { initialMatches } from '../lib/torneoData'
 import { EmptyState, PageLoader } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
@@ -122,8 +128,9 @@ function TorneoTab() {
   const matchesByDay = useMemo(() => {
     if (!managers || !punteggi) return []
     const scores = buildGiornateScores(punteggi, managers)
-    const ovr: Record<string, 'A' | 'B'> = {}
-    for (const o of overrides ?? []) ovr[o.match_id] = o.winner as 'A' | 'B'
+    const ovr: Record<string, TorneoOverrideInput> = {}
+    for (const o of overrides ?? [])
+      ovr[o.match_id] = { winner: o.winner as 'A' | 'B', golA: o.gol_a, golB: o.gol_b }
     const resolved = resolveTournament(initialMatches, scores, ovr)
     const byDay = new Map<number, TorneoMatch[]>()
     for (const m of resolved) {

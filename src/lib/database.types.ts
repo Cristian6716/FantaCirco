@@ -1136,16 +1136,22 @@ export type Database = {
       }
       torneo_overrides: {
         Row: {
+          gol_a: number | null
+          gol_b: number | null
           match_id: string
           updated_at: string
           winner: string
         }
         Insert: {
+          gol_a?: number | null
+          gol_b?: number | null
           match_id: string
           updated_at?: string
           winner: string
         }
         Update: {
+          gol_a?: number | null
+          gol_b?: number | null
           match_id?: string
           updated_at?: string
           winner?: string
