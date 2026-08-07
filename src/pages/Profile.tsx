@@ -40,6 +40,10 @@ export default function ProfilePage() {
           <Stat label="Bloccati" value={credits?.locked} color="text-amber-300" />
           <Stat label="Disponibili" value={credits?.available} color="text-accent" />
         </div>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Rosa: {credits?.roster_used ?? 0}/{credits?.roster_max ?? 0} slot occupati (giocatori
+          vinti + aste in corso). I crediti bloccati includono i tetti degli auto-bid attivi.
+        </p>
       </div>
 
       {ranking && (

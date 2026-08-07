@@ -56,6 +56,18 @@ export default function AuctionDetailPage() {
   }
 
   const isLeader = auction.leader_id === manager?.id
+  // Crediti spendibili su QUESTA asta: i disponibili non contano l'impegno che ho
+  // gia' qui (offerta in testa o tetto auto-bid), quindi va riaggiunto.
+  const myCommitment = Math.max(
+    isLeader ? auction.current_bid : 0,
+    myAutobid?.max_amount ?? 0,
+  )
+  const capacity = (credits?.available ?? 0) + myCommitment
+  // Stesso ragionamento per gli slot rosa: se sono gia' impegnato qui, questo
+  // giocatore occupa uno slot che ho gia' contato.
+  const rosterFull = credits
+    ? (credits.roster_free ?? 0) + (myCommitment > 0 ? 1 : 0) <= 0
+    : false
   const active = isActive(auction.status)
   const withdrawn = !!myPart?.withdrawn
   const eligiblePhase2 = auction.status !== 'phase2' || !!myPart?.joined_in_phase1
@@ -137,7 +149,13 @@ export default function AuctionDetailPage() {
             <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4 text-center text-sm text-accent">
               🥇 Sei in testa! Non puoi rilanciare su te stesso.
               <div className="mt-3">
-                <AutobidPanel auctionId={auction.id} currentBid={auction.current_bid} myMax={myAutobid?.max_amount ?? null} isLeader />
+                <AutobidPanel
+                  auctionId={auction.id}
+                  currentBid={auction.current_bid}
+                  myMax={myAutobid?.max_amount ?? null}
+                  capacity={capacity}
+                  isLeader
+                />
               </div>
             </div>
           ) : withdrawn ? (
@@ -150,15 +168,24 @@ export default function AuctionDetailPage() {
             </div>
           ) : (
             <>
+              {rosterFull && (
+                <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm text-amber-200">
+                  Rosa al completo ({credits?.roster_max ?? 0} giocatori, aste in corso incluse):
+                  non puoi impegnarti su altri giocatori.
+                </div>
+              )}
               <BidPanel
                 auctionId={auction.id}
                 minBid={auction.current_bid + 1}
-                available={credits?.available ?? 0}
+                available={capacity}
+                blocked={rosterFull}
               />
               <AutobidPanel
                 auctionId={auction.id}
                 currentBid={auction.current_bid}
                 myMax={myAutobid?.max_amount ?? null}
+                capacity={capacity}
+                blocked={rosterFull}
               />
               {myPart && (
                 <WithdrawButton auctionId={auction.id} playerName={player?.name ?? ''} />
@@ -253,10 +280,12 @@ function BidPanel({
   auctionId,
   minBid,
   available,
+  blocked,
 }: {
   auctionId: number
   minBid: number
   available: number
+  blocked?: boolean
 }) {
   const toast = useToast()
   const qc = useQueryClient()
@@ -269,7 +298,7 @@ function BidPanel({
   }, [minBid])
 
   const tooHigh = amount > available
-  const invalid = amount < minBid || tooHigh
+  const invalid = amount < minBid || tooHigh || !!blocked
 
   async function onBid() {
     setLoading(true)
@@ -322,22 +351,26 @@ function AutobidPanel({
   auctionId,
   currentBid,
   myMax,
+  capacity,
+  blocked,
   isLeader,
 }: {
   auctionId: number
   currentBid: number
   myMax: number | null
+  capacity: number
+  blocked?: boolean
   isLeader?: boolean
 }) {
   const toast = useToast()
   const confirm = useConfirm()
   const qc = useQueryClient()
-  const credits = useMyCredits()
   const [open, setOpen] = useState(false)
   const minMax = isLeader ? currentBid : currentBid + 1
   const [max, setMax] = useState(Math.max(minMax, myMax ?? minMax))
   const [loading, setLoading] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const tooHigh = max > capacity
 
   function refresh() {
     qc.invalidateQueries({ queryKey: ['autobid', auctionId] })
@@ -408,7 +441,8 @@ function AutobidPanel({
                 setMax(Math.max(minMax, myMax ?? minMax))
                 setOpen(true)
               }}
-              className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-slate-200"
+              disabled={!!blocked}
+              className="rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-slate-200 disabled:opacity-50"
             >
               {myMax != null ? 'Modifica' : 'Imposta'}
             </button>
@@ -422,9 +456,14 @@ function AutobidPanel({
             <QtyInput value={max} onChange={setMax} min={minMax} size="md" />
           </div>
           <p className="mt-1.5 text-xs text-slate-400">
-            Min {minMax} · disponibili {credits?.available ?? 0}
+            Min {minMax} · max {capacity}
             {isLeader ? ' (sei in testa: non può scendere sotto l’offerta attuale)' : ''}.
           </p>
+          {tooHigh && (
+            <p className="mt-2 text-xs text-rose-300">
+              Crediti insufficienti: il tetto impegna i crediti come un’offerta.
+            </p>
+          )}
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => setOpen(false)}
@@ -434,7 +473,7 @@ function AutobidPanel({
             </button>
             <button
               onClick={onSet}
-              disabled={loading || max < minMax}
+              disabled={loading || max < minMax || tooHigh || !!blocked}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent-strong py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {loading ? <Spinner /> : 'Conferma'}

@@ -1334,6 +1334,9 @@ export type Database = {
           id: string | null
           is_admin: boolean | null
           locked: number | null
+          roster_free: number | null
+          roster_max: number | null
+          roster_used: number | null
           team_name: string | null
           username: string | null
         }

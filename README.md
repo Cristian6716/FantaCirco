@@ -15,8 +15,13 @@ condivisione su WhatsApp.
 - **Fase 1 (24h)**: tutti possono rilanciare. **Fase 2 (24h)**: solo chi ha partecipato alla fase 1.
 - **Auto-bid**: imposti un tetto massimo; l'app rilancia per te di +1 quando vieni superato,
   fino al tetto (il tetto è segreto e si può solo aumentare).
-- **Crediti disponibili** = totali − somma delle offerte sulle aste dove sei attualmente in testa.
-  Si sbloccano appena vieni superato.
+- **Crediti disponibili** = totali − somma degli impegni sulle aste in corso. L'impegno su
+  un'asta è il maggiore tra l'offerta con cui sei in testa e il tetto del tuo auto-bid attivo:
+  anche l'auto-bid blocca i crediti, quindi non puoi impegnarti oltre quello che hai.
+  Si sbloccano appena vieni superato (o rimuovi l'auto-bid).
+- **Limite di rosa**: massimo 33 giocatori, contando quelli già vinti più gli impegni aperti
+  (aste dove sei in testa o hai un auto-bid attivo). A rosa piena non puoi avviare aste,
+  rilanciare o impostare auto-bid. Il limite è in `app_config.max_roster`.
 - **Ritiro**: possibile solo se non sei in testa. Quando tutti tranne il leader si ritirano (in
   fase 2) l'asta si chiude e il giocatore va al leader.
 - A fine asta i crediti del vincitore vengono scalati e il giocatore assegnato.

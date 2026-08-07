@@ -207,8 +207,9 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
   const [created, setCreated] = useState<{ id: number; phase1EndsAt: string } | null>(null)
 
   const available = credits?.available ?? 0
+  const rosterFull = credits ? (credits.roster_free ?? 0) <= 0 : false
   const tooHigh = base > available
-  const invalid = base < 1 || tooHigh
+  const invalid = base < 1 || tooHigh || rosterFull
 
   async function onConfirm() {
     setLoading(true)
@@ -262,8 +263,14 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
               <QtyInput value={base} onChange={setBase} min={1} />
             </div>
             <p className={`mt-2 text-xs ${tooHigh ? 'text-rose-300' : 'text-slate-400'}`}>
-              Crediti disponibili: {available}
+              Crediti disponibili: {available} · slot rosa liberi: {credits?.roster_free ?? 0}/
+              {credits?.roster_max ?? 0}
             </p>
+            {rosterFull && (
+              <p className="mt-2 text-xs text-amber-300">
+                Rosa al completo (aste in corso incluse): non puoi avviare altre aste.
+              </p>
+            )}
 
             <div className="mt-5 flex gap-2">
               <button
