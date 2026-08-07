@@ -20,6 +20,7 @@ export default function AuctionsPage() {
   const { data: managers } = useManagers()
   const { data: myParts } = useMyParticipations()
   const [filter, setFilter] = useState<Filter>('all')
+  const [search, setSearch] = useState('')
 
   const playerMap = useMemo(
     () => new Map((players ?? []).map((p) => [p.id, p])),
@@ -43,8 +44,18 @@ export default function AuctionsPage() {
   const list = useMemo(() => {
     let res = (auctions ?? []).filter((a) => isActive(a.status))
     if (filter === 'mine') res = res.filter((a) => myActiveAuctionIds.has(a.id))
+    const q = search.trim().toLowerCase()
+    if (q) {
+      res = res.filter((a) => {
+        const p = playerMap.get(a.player_id)
+        if (!p) return false
+        return (
+          p.name.toLowerCase().includes(q) || (p.real_team ?? '').toLowerCase().includes(q)
+        )
+      })
+    }
     return res
-  }, [auctions, filter, myActiveAuctionIds])
+  }, [auctions, filter, myActiveAuctionIds, playerMap, search])
 
   if (isLoading) return <PageLoader />
 
@@ -59,6 +70,13 @@ export default function AuctionsPage() {
           + Avvia asta
         </Link>
       </div>
+
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Cerca giocatore o squadra…"
+        className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-white outline-none focus:border-accent"
+      />
 
       <div className="flex items-center gap-2">
         <div className="flex rounded-xl border border-border bg-surface p-1">
@@ -82,16 +100,22 @@ export default function AuctionsPage() {
 
       {list.length === 0 ? (
         <EmptyState
-          icon="🔨"
+          icon={search.trim() ? '🔍' : '🔨'}
           title={
-            filter === 'mine' ? 'Non partecipi a nessuna asta' : 'Nessuna asta attiva'
+            search.trim()
+              ? 'Nessuna asta trovata'
+              : filter === 'mine'
+                ? 'Non partecipi a nessuna asta'
+                : 'Nessuna asta attiva'
           }
           hint={
-            filter === 'mine'
-              ? undefined
-              : closedCount > 0
-                ? 'Le aste concluse sono in archivio.'
-                : 'Avvia un’asta dalla lista giocatori.'
+            search.trim()
+              ? 'Nessun giocatore con asta attiva corrisponde alla ricerca.'
+              : filter === 'mine'
+                ? undefined
+                : closedCount > 0
+                  ? 'Le aste concluse sono in archivio.'
+                  : 'Avvia un’asta dalla lista giocatori.'
           }
         />
       ) : (
