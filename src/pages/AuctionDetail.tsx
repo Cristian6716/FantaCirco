@@ -18,6 +18,17 @@ import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
 import { auctionUrl, shareOnWhatsapp } from '../lib/share'
 
+type TimelineEvent =
+  | {
+      kind: 'bid'
+      key: string
+      at: string
+      managerId: string
+      amount: number
+      isAuto: boolean
+    }
+  | { kind: 'withdraw'; key: string; at: string; managerId: string }
+
 export default function AuctionDetailPage() {
   const params = useParams()
   const id = Number(params.id)
@@ -40,6 +51,32 @@ export default function AuctionDetailPage() {
     () => (participants ?? []).find((p) => p.manager_id === manager?.id),
     [participants, manager?.id],
   )
+  const withdrawnParts = useMemo(
+    () => (participants ?? []).filter((p) => p.withdrawn),
+    [participants],
+  )
+  // Storico unico: rilanci e ritiri in ordine cronologico, cosi' si vede subito
+  // chi e' uscito dall'asta e quando.
+  const timeline = useMemo<TimelineEvent[]>(() => {
+    const events: TimelineEvent[] = (bids ?? []).map((b) => ({
+      kind: 'bid',
+      key: `bid-${b.id}`,
+      at: b.created_at,
+      managerId: b.manager_id,
+      amount: b.amount,
+      isAuto: b.is_auto,
+    }))
+    for (const p of withdrawnParts) {
+      if (!p.withdrawn_at) continue
+      events.push({
+        kind: 'withdraw',
+        key: `out-${p.manager_id}`,
+        at: p.withdrawn_at,
+        managerId: p.manager_id,
+      })
+    }
+    return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  }, [bids, withdrawnParts])
 
   if (isLoading) return <PageLoader />
   if (!auction) {
@@ -77,8 +114,11 @@ export default function AuctionDetailPage() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate('/asta/aste')} className="text-sm text-slate-400">
-        ‹ Aste
+      <button
+        onClick={() => navigate(active ? '/asta/aste' : '/asta/archivio')}
+        className="text-sm text-slate-400"
+      >
+        ‹ {active ? 'Aste' : 'Archivio'}
       </button>
 
       {/* Header giocatore */}
@@ -97,10 +137,10 @@ export default function AuctionDetailPage() {
         <div className="mt-4 flex items-end justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-wide text-slate-400">
-              {active ? 'In testa' : auction.status === 'ended' ? 'Aggiudicato a' : 'Annullata'}
+              {active ? 'In testa' : auction.status === 'ended' ? 'Aggiudicato a' : 'Esito'}
             </p>
             <p className={`text-lg font-semibold ${isLeader ? 'text-accent' : 'text-white'}`}>
-              {isLeader ? 'Tu' : leaderName}
+              {auction.status === 'cancelled' ? 'Annullata' : isLeader ? 'Tu' : leaderName}
             </p>
           </div>
           <div className="text-right">
@@ -160,7 +200,7 @@ export default function AuctionDetailPage() {
             </div>
           ) : withdrawn ? (
             <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-center text-sm text-rose-200">
-              Ti sei ritirato da questa asta.
+              🚪 Ti sei ritirato da questa asta: non puoi più rilanciare.
             </div>
           ) : !eligiblePhase2 ? (
             <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm text-amber-200">
@@ -188,7 +228,11 @@ export default function AuctionDetailPage() {
                 blocked={rosterFull}
               />
               {myPart && (
-                <WithdrawButton auctionId={auction.id} playerName={player?.name ?? ''} />
+                <WithdrawPanel
+                  auctionId={auction.id}
+                  playerName={player?.name ?? ''}
+                  phase2={auction.status === 'phase2'}
+                />
               )}
             </>
           )}
@@ -199,37 +243,76 @@ export default function AuctionDetailPage() {
         <div className="rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-center text-sm text-sky-100">
           🏁 Asta conclusa: <b>{leaderName}</b> si aggiudica <b>{player?.name}</b> per{' '}
           <b>{auction.current_bid}</b> crediti.
+          <div className="mt-2 text-xs text-sky-200/80">
+            L’asta è in{' '}
+            <button onClick={() => navigate('/asta/archivio')} className="underline">
+              archivio
+            </button>
+            .
+          </div>
         </div>
       )}
 
-      {/* Storico offerte */}
+      {auction.status === 'cancelled' && (
+        <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-center text-sm text-rose-100">
+          ✖️ Asta annullata dall’amministratore: <b>{player?.name}</b> non è stato assegnato.
+          <div className="mt-2 text-xs text-rose-200/80">
+            L’asta è in{' '}
+            <button onClick={() => navigate('/asta/archivio')} className="underline">
+              archivio
+            </button>
+            .
+          </div>
+        </div>
+      )}
+
+      {/* Storico: rilanci + ritiri */}
       <div>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Storico offerte</h2>
-        <div className="space-y-1.5">
-          {(bids ?? []).length === 0 && (
-            <p className="text-sm text-slate-500">Nessuna offerta.</p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-300">Storico asta</h2>
+          {withdrawnParts.length > 0 && (
+            <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-200">
+              {withdrawnParts.length} ritirat{withdrawnParts.length === 1 ? 'o' : 'i'}
+            </span>
           )}
-          {(bids ?? []).map((b) => {
-            const name = managerMap.get(b.manager_id)?.display_name ?? '—'
-            const mine = b.manager_id === manager?.id
+        </div>
+        <div className="space-y-1.5">
+          {timeline.length === 0 && <p className="text-sm text-slate-500">Nessuna offerta.</p>}
+          {timeline.map((ev) => {
+            const name = managerMap.get(ev.managerId)?.display_name ?? '—'
+            const mine = ev.managerId === manager?.id
+            if (ev.kind === 'withdraw') {
+              return (
+                <div
+                  key={ev.key}
+                  className="flex items-center justify-between rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm"
+                >
+                  <span className="text-rose-200">
+                    🚪 <span className="font-semibold">{mine ? 'Tu' : name}</span>
+                    {mine ? ' ti sei ritirato' : ' si è ritirato'} dall’asta
+                  </span>
+                  <span className="text-xs text-rose-300/70">{formatTime(ev.at)}</span>
+                </div>
+              )
+            }
             return (
               <div
-                key={b.id}
+                key={ev.key}
                 className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               >
                 <div className="flex items-center gap-2">
                   <span className={mine ? 'font-semibold text-accent' : 'text-slate-200'}>
                     {mine ? 'Tu' : name}
                   </span>
-                  {b.is_auto && (
+                  {ev.isAuto && (
                     <span className="rounded bg-slate-600/40 px-1.5 py-0.5 text-[10px] text-slate-300">
                       auto
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-white">{b.amount}</span>
-                  <span className="text-xs text-slate-500">{formatTime(b.created_at)}</span>
+                  <span className="font-bold text-white">{ev.amount}</span>
+                  <span className="text-xs text-slate-500">{formatTime(ev.at)}</span>
                 </div>
               </div>
             )
@@ -485,7 +568,19 @@ function AutobidPanel({
   )
 }
 
-function WithdrawButton({ auctionId, playerName }: { auctionId: number; playerName: string }) {
+/**
+ * Ritiro volontario: disponibile in entrambe le fasi a chi partecipa ma non e'
+ * in testa. Il ritiro finisce nello storico, cosi' gli altri lo vedono.
+ */
+function WithdrawPanel({
+  auctionId,
+  playerName,
+  phase2,
+}: {
+  auctionId: number
+  playerName: string
+  phase2: boolean
+}) {
   const toast = useToast()
   const confirm = useConfirm()
   const qc = useQueryClient()
@@ -494,7 +589,7 @@ function WithdrawButton({ auctionId, playerName }: { auctionId: number; playerNa
   async function onWithdraw() {
     const ok = await confirm({
       title: 'Ritirarsi dall’asta?',
-      message: `Non potrai più rilanciare per ${playerName}. L'azione è definitiva.`,
+      message: `Non potrai più rilanciare per ${playerName} e il tuo auto-bid verrà rimosso. Il ritiro sarà visibile a tutti nello storico. L'azione è definitiva.`,
       confirmLabel: 'Ritirati',
       danger: true,
     })
@@ -503,8 +598,11 @@ function WithdrawButton({ auctionId, playerName }: { auctionId: number; playerNa
     try {
       await withdraw(auctionId)
       qc.invalidateQueries({ queryKey: ['auction', auctionId] })
+      qc.invalidateQueries({ queryKey: ['auctions'] })
       qc.invalidateQueries({ queryKey: ['participants', auctionId] })
       qc.invalidateQueries({ queryKey: ['my-participations'] })
+      qc.invalidateQueries({ queryKey: ['autobid', auctionId] })
+      qc.invalidateQueries({ queryKey: ['credits'] })
       toast.success('Ti sei ritirato.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
@@ -514,12 +612,20 @@ function WithdrawButton({ auctionId, playerName }: { auctionId: number; playerNa
   }
 
   return (
-    <button
-      onClick={onWithdraw}
-      disabled={loading}
-      className="w-full rounded-xl border border-rose-500/40 bg-rose-500/10 py-2.5 text-sm font-medium text-rose-200 active:scale-[0.98] disabled:opacity-50"
-    >
-      {loading ? 'Attendere…' : 'Ritirati dall’asta'}
-    </button>
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold text-slate-200">Non ti interessa più?</h2>
+      <p className="mt-1 text-xs text-slate-400">
+        {phase2
+          ? 'Siamo in fase 2: se non vuoi più questo giocatore puoi ritirarti. Gli altri lo vedranno nello storico e, se resti l’ultimo sfidante, l’asta si chiude subito.'
+          : 'Puoi uscire dall’asta: i crediti impegnati tornano liberi e il ritiro sarà visibile nello storico.'}
+      </p>
+      <button
+        onClick={onWithdraw}
+        disabled={loading}
+        className="mt-3 w-full rounded-xl border border-rose-500/40 bg-rose-500/10 py-2.5 text-sm font-medium text-rose-200 active:scale-[0.98] disabled:opacity-50"
+      >
+        {loading ? 'Attendere…' : '🚪 Ritirati dall’asta'}
+      </button>
+    </div>
   )
 }

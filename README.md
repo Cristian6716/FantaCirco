@@ -22,9 +22,12 @@ condivisione su WhatsApp.
 - **Limite di rosa**: massimo 33 giocatori, contando quelli già vinti più gli impegni aperti
   (aste dove sei in testa o hai un auto-bid attivo). A rosa piena non puoi avviare aste,
   rilanciare o impostare auto-bid. Il limite è in `app_config.max_roster`.
-- **Ritiro**: possibile solo se non sei in testa. Quando tutti tranne il leader si ritirano (in
-  fase 2) l'asta si chiude e il giocatore va al leader.
+- **Ritiro**: possibile in entrambe le fasi, solo se non sei in testa. Disattiva il tuo auto-bid
+  e libera i crediti; il ritiro compare nello storico dell'asta, visibile a tutti. Quando tutti
+  tranne il leader si ritirano (in fase 2) l'asta si chiude e il giocatore va al leader.
 - A fine asta i crediti del vincitore vengono scalati e il giocatore assegnato.
+- **Archivio** (`/asta/archivio`): ogni asta chiusa — aggiudicata, senza acquirente o annullata
+  dall'admin — esce dalla lista delle attive e resta consultabile qui, con esito, prezzo e data.
 
 ## Sviluppo locale
 ```bash

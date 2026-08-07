@@ -20,7 +20,6 @@ export default function AuctionsPage() {
   const { data: managers } = useManagers()
   const { data: myParts } = useMyParticipations()
   const [filter, setFilter] = useState<Filter>('all')
-  const [showEnded, setShowEnded] = useState(false)
 
   const playerMap = useMemo(
     () => new Map((players ?? []).map((p) => [p.id, p])),
@@ -35,13 +34,17 @@ export default function AuctionsPage() {
     [myParts],
   )
 
+  // Le aste chiuse escono da qui e finiscono in archivio, qualunque sia l'esito.
+  const closedCount = useMemo(
+    () => (auctions ?? []).filter((a) => !isActive(a.status)).length,
+    [auctions],
+  )
+
   const list = useMemo(() => {
-    let res = (auctions ?? []).filter((a) =>
-      showEnded ? !isActive(a.status) : isActive(a.status),
-    )
+    let res = (auctions ?? []).filter((a) => isActive(a.status))
     if (filter === 'mine') res = res.filter((a) => myActiveAuctionIds.has(a.id))
     return res
-  }, [auctions, filter, showEnded, myActiveAuctionIds])
+  }, [auctions, filter, myActiveAuctionIds])
 
   if (isLoading) return <PageLoader />
 
@@ -66,30 +69,30 @@ export default function AuctionsPage() {
             Le tue aste
           </SegBtn>
         </div>
-        <button
-          onClick={() => setShowEnded((v) => !v)}
-          className={[
-            'ml-auto rounded-lg border px-3 py-1.5 text-xs font-medium',
-            showEnded
-              ? 'border-sky-500/50 bg-sky-500/15 text-sky-200'
-              : 'border-border bg-surface text-slate-400',
-          ].join(' ')}
+        <Link
+          to="/asta/archivio"
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-slate-300"
         >
-          {showEnded ? 'Concluse' : 'Attive'}
-        </button>
+          📦 Archivio
+          <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-slate-400">
+            {closedCount}
+          </span>
+        </Link>
       </div>
 
       {list.length === 0 ? (
         <EmptyState
           icon="🔨"
           title={
-            filter === 'mine'
-              ? 'Non partecipi a nessuna asta'
-              : showEnded
-                ? 'Nessuna asta conclusa'
-                : 'Nessuna asta attiva'
+            filter === 'mine' ? 'Non partecipi a nessuna asta' : 'Nessuna asta attiva'
           }
-          hint={filter === 'mine' ? undefined : 'Avvia un’asta dalla lista giocatori.'}
+          hint={
+            filter === 'mine'
+              ? undefined
+              : closedCount > 0
+                ? 'Le aste concluse sono in archivio.'
+                : 'Avvia un’asta dalla lista giocatori.'
+          }
         />
       ) : (
         <div className="space-y-2.5">
@@ -152,7 +155,6 @@ function AuctionCard({
 }) {
   const deadline =
     auction.status === 'phase1' ? auction.phase1_ends_at : auction.phase2_ends_at
-  const ended = !isActive(auction.status)
 
   return (
     <Link
@@ -172,9 +174,7 @@ function AuctionCard({
 
       <div className="mt-3 flex items-end justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-slate-400">
-            {ended ? 'Aggiudicato a' : 'In testa'}
-          </p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">In testa</p>
           <p className={`text-sm font-medium ${isLeader ? 'text-accent' : 'text-slate-200'}`}>
             {isLeader ? 'Tu' : leaderName}
           </p>
@@ -188,8 +188,6 @@ function AuctionCard({
       <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5 text-xs">
         {auction.status === 'paused' ? (
           <span className="text-slate-400">In pausa</span>
-        ) : ended ? (
-          <span className="text-slate-400">Conclusa</span>
         ) : (
           <span className="text-slate-400">
             Termina fase tra{' '}
@@ -197,7 +195,7 @@ function AuctionCard({
           </span>
         )}
         <div className="flex items-center gap-2">
-          {mine && !ended && (
+          {mine && (
             <span className="rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent">
               Partecipi
             </span>

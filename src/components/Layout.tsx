@@ -145,6 +145,7 @@ const SECTIONS: Section[] = [
     items: [
       { to: '/asta/giocatori', label: 'Giocatori' },
       { to: '/asta/aste', label: 'Aste' },
+      { to: '/asta/archivio', label: 'Archivio' },
     ],
   },
   {

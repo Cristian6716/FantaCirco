@@ -7,6 +7,7 @@ import { resyncPush } from './lib/push'
 import LoginPage from './pages/Login'
 import ChooseTeamPage from './pages/ChooseTeamPage'
 import AuctionsPage from './pages/Auctions'
+import ArchivePage from './pages/Archive'
 import PlayersPage from './pages/Players'
 import AuctionDetailPage from './pages/AuctionDetail'
 import PronosticaPage from './pages/pronostici/PronosticaPage'
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/asta/giocatori" element={<PlayersPage />} />
         <Route path="/asta/aste" element={<AuctionsPage />} />
         <Route path="/asta/aste/:id" element={<AuctionDetailPage />} />
+        <Route path="/asta/archivio" element={<ArchivePage />} />
         <Route path="/pronostici" element={<Navigate to="/pronostici/pronostica" replace />} />
         <Route path="/pronostici/pronostica" element={<PronosticaPage />} />
         <Route path="/pronostici/classifica" element={<ClassificaPage />} />
