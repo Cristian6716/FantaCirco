@@ -13,6 +13,14 @@ import { isActive } from '../lib/format'
 
 type Filter = 'all' | 'mine'
 
+/** Scadenza della fase in corso (per le aste in pausa il timer è congelato). */
+function phaseDeadline(a: Auction): string {
+  return a.status === 'phase1' ? a.phase1_ends_at : a.phase2_ends_at
+}
+
+/** Priorità di fase in "Le tue aste": prima la fase 2, poi la fase 1, in fondo le pause. */
+const PHASE_RANK: Record<string, number> = { phase2: 0, phase1: 1, paused: 2 }
+
 export default function AuctionsPage() {
   const { manager } = useAuth()
   const { data: auctions, isLoading } = useAuctions()
@@ -52,6 +60,14 @@ export default function AuctionsPage() {
         return (
           p.name.toLowerCase().includes(q) || (p.real_team ?? '').toLowerCase().includes(q)
         )
+      })
+    }
+    // Nelle "tue aste" conta l'urgenza: fase 2 in cima, poi la scadenza più vicina.
+    if (filter === 'mine') {
+      res = [...res].sort((x, y) => {
+        const rank = (PHASE_RANK[x.status] ?? 3) - (PHASE_RANK[y.status] ?? 3)
+        if (rank !== 0) return rank
+        return new Date(phaseDeadline(x)).getTime() - new Date(phaseDeadline(y)).getTime()
       })
     }
     return res
@@ -177,14 +193,27 @@ function AuctionCard({
   isLeader: boolean
   mine: boolean
 }) {
-  const deadline =
-    auction.status === 'phase1' ? auction.phase1_ends_at : auction.phase2_ends_at
+  const deadline = phaseDeadline(auction)
+  const isPhase2 = auction.status === 'phase2'
+  const isPaused = auction.status === 'paused'
+
+  // Gerarchia visiva: verde = la stai vincendo, ambra = fase 2, spento = in pausa.
+  const shell = isLeader
+    ? 'border-accent/60 bg-accent/[0.07] shadow-[0_0_0_1px_rgb(34_197_94/0.15)]'
+    : isPhase2
+      ? 'border-amber-500/50 bg-amber-500/[0.06]'
+      : isPaused
+        ? 'border-border bg-surface opacity-60'
+        : 'border-border bg-surface'
 
   return (
     <Link
       to={`/asta/aste/${auction.id}`}
-      className="block rounded-2xl border border-border bg-surface p-3.5 active:scale-[0.99]"
+      className={`relative block overflow-hidden rounded-2xl border p-3.5 active:scale-[0.99] ${shell}`}
     >
+      {/* La fase 2 resta riconoscibile anche quando la card è verde perché sei in testa */}
+      {isPhase2 && <span className="absolute inset-y-0 left-0 w-1 bg-amber-400/80" />}
+
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <RoleBadge roles={playerRoles} />
@@ -210,19 +239,28 @@ function AuctionCard({
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5 text-xs">
-        {auction.status === 'paused' ? (
+        {isPaused ? (
           <span className="text-slate-400">In pausa</span>
         ) : (
           <span className="text-slate-400">
             Termina fase tra{' '}
-            <Countdown target={deadline} className="font-semibold text-amber-300" />
+            <Countdown
+              target={deadline}
+              className={`font-semibold ${isPhase2 ? 'text-amber-300' : 'text-slate-200'}`}
+            />
           </span>
         )}
         <div className="flex items-center gap-2">
-          {mine && (
-            <span className="rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent">
-              Partecipi
+          {isLeader ? (
+            <span className="rounded-full bg-accent/20 px-2 py-0.5 font-semibold text-accent">
+              Stai vincendo
             </span>
+          ) : (
+            mine && (
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-slate-300">
+                Partecipi
+              </span>
+            )
           )}
           <span className="text-accent">Apri ›</span>
         </div>
