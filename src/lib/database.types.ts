@@ -1416,6 +1416,17 @@ export type Database = {
         Args: { p_amount: number; p_auction: number }
         Returns: undefined
       }
+      podio_classifica: {
+        Args: { p_round: number }
+        Returns: {
+          c1: number
+          c2: number
+          c3: number
+          manager_id: string
+          nome: string
+          punti: number
+        }[]
+      }
       set_autobid: {
         Args: { p_auction: number; p_max: number }
         Returns: undefined

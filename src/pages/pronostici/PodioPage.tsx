@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useManagers } from '../../lib/queries'
-import { useMyPodioVote, useOpenPodioRound, useSubmitPodioVote, type PodioVote } from '../../lib/podio'
+import {
+  useMyPodioVote,
+  useOpenPodioRound,
+  usePodioClassifica,
+  useSubmitPodioVote,
+  type PodioClassificaRow,
+  type PodioVote,
+} from '../../lib/podio'
 import { EmptyState, PageLoader, Spinner } from '../../components/ui'
 import { useToast } from '../../components/Toast'
 
@@ -9,6 +16,8 @@ export default function PodioPage() {
   const { data: managers, isLoading: mLoading } = useManagers()
   const { data: myVote, isLoading: vLoading } = useMyPodioVote(round?.id)
   const [editing, setEditing] = useState(false)
+  // La classifica si sblocca solo dopo aver votato.
+  const { data: classifica } = usePodioClassifica(round?.id, !!myVote)
 
   const squadre = useMemo(
     () =>
@@ -47,21 +56,70 @@ export default function PodioPage() {
         />
       ) : (
         myVote && (
-          <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
-            <p className="text-sm font-semibold text-accent">Hai votato</p>
-            <div className="mt-3 space-y-1.5 text-sm text-white">
-              <p>🥇 1° {nameOf(myVote.pos1)}</p>
-              <p>🥈 2° {nameOf(myVote.pos2)}</p>
-              <p>🥉 3° {nameOf(myVote.pos3)}</p>
+          <>
+            <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
+              <p className="text-sm font-semibold text-accent">Hai votato</p>
+              <div className="mt-3 space-y-1.5 text-sm text-white">
+                <p>🥇 1° {nameOf(myVote.pos1)}</p>
+                <p>🥈 2° {nameOf(myVote.pos2)}</p>
+                <p>🥉 3° {nameOf(myVote.pos3)}</p>
+              </div>
+              <button
+                onClick={() => setEditing(true)}
+                className="mt-4 w-full rounded-xl border border-border bg-surface-2 py-2.5 text-sm font-medium text-slate-200 active:scale-[0.98]"
+              >
+                Modifica voto
+              </button>
             </div>
-            <button
-              onClick={() => setEditing(true)}
-              className="mt-4 w-full rounded-xl border border-border bg-surface-2 py-2.5 text-sm font-medium text-slate-200 active:scale-[0.98]"
-            >
-              Modifica voto
-            </button>
-          </div>
+
+            <ClassificaPodio rows={classifica} />
+          </>
         )
+      )}
+    </div>
+  )
+}
+
+// Classifica aggregata: solo i totali, senza chi ha votato cosa.
+function ClassificaPodio({ rows }: { rows: PodioClassificaRow[] | undefined }) {
+  if (!rows) return null
+  const votanti = rows.reduce((n, r) => n + r.c1, 0)
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-200">Classifica</h3>
+        <span className="text-xs text-slate-500">
+          {votanti} {votanti === 1 ? 'voto' : 'voti'}
+        </span>
+      </div>
+      {votanti === 0 ? (
+        <p className="mt-2 text-xs text-slate-500">Nessun voto ancora.</p>
+      ) : (
+        <div className="mt-2 overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-2 text-xs uppercase tracking-wide text-slate-400">
+                <th className="px-2 py-1.5 text-left font-medium">Squadra</th>
+                <th className="px-2 py-1.5 text-center font-medium">1°</th>
+                <th className="px-2 py-1.5 text-center font-medium">2°</th>
+                <th className="px-2 py-1.5 text-center font-medium">3°</th>
+                <th className="px-2 py-1.5 text-right font-medium">Punti</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.managerId} className="border-t border-border bg-surface">
+                  <td className="px-2 py-1.5 font-medium text-white">{r.nome}</td>
+                  <td className="px-2 py-1.5 text-center text-slate-300">{r.c1}</td>
+                  <td className="px-2 py-1.5 text-center text-slate-300">{r.c2}</td>
+                  <td className="px-2 py-1.5 text-center text-slate-300">{r.c3}</td>
+                  <td className="px-2 py-1.5 text-right font-bold text-accent">{r.punti}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

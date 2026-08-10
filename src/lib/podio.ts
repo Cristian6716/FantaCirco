@@ -66,6 +66,30 @@ export function useAdminPodioVotes(roundId: number | undefined) {
   })
 }
 
+// Classifica aggregata via RPC: i voti altrui non sono leggibili (RLS), quindi
+// il totale arriva dal server. Ritorna righe solo a chi ha già votato il round
+// (o a round chiuso / admin), altrimenti lista vuota.
+export function usePodioClassifica(roundId: number | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['podio_votes', 'classifica', roundId],
+    enabled: roundId != null && enabled,
+    queryFn: async (): Promise<PodioClassificaRow[]> => {
+      const { data, error } = await supabase.rpc('podio_classifica', { p_round: roundId! })
+      if (error) throw error
+      return (data ?? []).map((r) => ({
+        managerId: r.manager_id,
+        nome: r.nome,
+        punti: r.punti,
+        c1: r.c1,
+        c2: r.c2,
+        c3: r.c3,
+      }))
+    },
+    staleTime: 5_000,
+    refetchInterval: 30_000,
+  })
+}
+
 // ---------------- Mutation utente ----------------
 
 export function useSubmitPodioVote() {
