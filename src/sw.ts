@@ -1,9 +1,13 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 
 declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>
 }
+
+// Butta via le precache dei deploy precedenti: su iOS la quota di storage è
+// bassa e, quando si riempie, Safari cancella i dati del sito a caso.
+cleanupOutdatedCaches()
 
 precacheAndRoute(self.__WB_MANIFEST)
 

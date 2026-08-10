@@ -13,7 +13,10 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // La registrazione la facciamo a mano in src/pwa.ts: lo script iniettato
+      // dal plugin registra il service worker ma non ricarica mai la pagina
+      // quando arriva una versione nuova.
+      injectRegister: null,
       manifest: {
         name: 'FantaCirco',
         short_name: 'FantaCirco',
