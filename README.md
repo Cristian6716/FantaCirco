@@ -9,6 +9,32 @@ condivisione su WhatsApp.
 - **Backend**: Supabase (Postgres + Auth + Realtime + Edge Functions + pg_cron + pg_net)
 - **Hosting consigliato**: Vercel (frontend) — il backend è già su Supabase
 
+## Home — le rose
+La schermata iniziale (`/`) mostra la **propria rosa** con prezzo pagato e quotazione di ogni
+giocatore, più crediti disponibili/bloccati/spesi. I giocatori sono in ordine di listone (portieri
+→ attacco) senza raggruppamenti per reparto: in Mantra contano i ruoli, non le macro-categorie, e
+i badge usano gli **stessi colori di Fantacalcio.it** (`ROLE_COLOR` in `src/lib/format.ts`).
+
+Le altre rose si aprono da un **indice delle squadre** sulla sinistra della pagina (schermi larghi,
+distinto dal menù dell'app); su mobile diventa una lista a fisarmonica sotto la propria rosa, dove
+un tocco sul nome apre la rosa e un altro tocco sullo stesso nome la richiude.
+
+Le rose stanno in `players`: `owner_team` è il nome della squadra proprietaria e vale anche per
+le squadre che non hanno ancora un account — `claim_team` collega rosa e crediti residui appena
+il fantallenatore si registra e sceglie quella squadra.
+
+### Caricare una nuova stagione
+`data/rose.csv` (rose complete) e `data/svincolati.xlsx` (listone Mantra, esclusi i *fuori lista*
+con asterisco) sono le sorgenti. Lo script rigenera l'SQL che azzera la stagione precedente
+(aste, offerte, pronostici, punteggi, podio; resta `ranking_generale`) e ricarica tutto:
+
+```bash
+node scripts/import-stagione.mjs > stagione.sql
+```
+
+I crediti residui sono calcolati come budget di partenza (500, 501 per Frocinone) meno la spesa
+dell'asta estiva. La corrispondenza fra soprannome nel CSV e nome squadra è in cima allo script.
+
 ## Come funziona l'asta
 - Chi avvia un'asta piazza l'**offerta di apertura** al prezzo base (default 1, editabile) e
   diventa il primo in testa.

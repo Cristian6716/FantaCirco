@@ -29,15 +29,35 @@ export const MACRO_LABEL: Record<Macro, string> = {
   A: 'Attaccante',
 }
 
-export const MACRO_COLOR: Record<Macro, string> = {
-  P: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-  D: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
-  C: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-  A: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+/**
+ * Colori dei ruoli Mantra, gli stessi che usa Fantacalcio.it sul listone.
+ * Ala e trequartista condividono il viola, come sul sito ufficiale.
+ */
+export const ROLE_COLOR: Record<string, string> = {
+  Por: '#F0A02A',
+  Dd: '#12A79D',
+  Ds: '#12A79D',
+  Dc: '#2FA84F',
+  B: '#7CB342',
+  E: '#29A3E0',
+  M: '#2B4EA2',
+  C: '#3D7FD6',
+  W: '#8A4FC8',
+  T: '#8A4FC8',
+  A: '#E0447B',
+  Pc: '#E03A34',
 }
 
+/** Colore di sfondo del badge di un ruolo (grigio per un codice sconosciuto). */
 export function roleColor(role: string): string {
-  return MACRO_COLOR[ROLE_MACRO[role] ?? 'C']
+  return ROLE_COLOR[role] ?? '#64748B'
+}
+
+/** Ordina i giocatori come il listone: portieri, difesa, centrocampo, attacco. */
+export function roleRank(roles: string[] | null | undefined): number {
+  if (!roles || roles.length === 0) return MANTRA_ROLES.length
+  const i = MANTRA_ROLES.indexOf(roles[0] as MantraRole)
+  return i === -1 ? MANTRA_ROLES.length : i
 }
 
 export function macroOf(roles: string[] | null | undefined): Macro | null {

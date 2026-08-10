@@ -19,7 +19,8 @@ export function RoleBadge({ roles }: { roles: string[] | null | undefined }) {
       {roles.map((r) => (
         <span
           key={r}
-          className={`inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border px-1 text-[11px] font-bold ${roleColor(r)}`}
+          style={{ backgroundColor: roleColor(r) }}
+          className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md px-1 text-[11px] font-bold text-white"
         >
           {r}
         </span>

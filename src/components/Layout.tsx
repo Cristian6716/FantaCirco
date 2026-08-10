@@ -96,6 +96,7 @@ function DrawerSection({
     return (
       <NavLink
         to={section.to!}
+        end={section.to === '/'}
         onClick={onNavigate}
         className={({ isActive }) =>
           [
@@ -138,6 +139,7 @@ function DrawerSection({
 }
 
 const SECTIONS: Section[] = [
+  { key: 'rose', label: 'Rose', icon: '🏠', to: '/' },
   {
     key: 'asta',
     label: 'Asta',

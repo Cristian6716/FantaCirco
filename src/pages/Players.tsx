@@ -142,7 +142,9 @@ export default function PlayersPage() {
             <PlayerRow
               key={p.id}
               player={p}
-              assignedToName={p.assigned_to ? managerMap.get(p.assigned_to)?.display_name ?? '—' : null}
+              assignedToName={
+                p.owner_team ?? (p.assigned_to ? managerMap.get(p.assigned_to)?.display_name ?? '—' : null)
+              }
               activeAuctionId={activeAuctionByPlayer.get(p.id)}
               onStart={() => setTarget(p)}
             />

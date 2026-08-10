@@ -2,20 +2,20 @@
 // calendario pronostici, podio e tornei. Per aggiungere/rinominare una
 // squadra basta modificare questo elenco.
 export const TEAM_NAMES = [
-  'Beautiful Abbyssinian',
   'Cani della Malesia',
-  'Come VaVa',
   'Energy Team',
   'Fc Padre Tempo',
   'Fessa Kyoto Fc',
   'Figli di Putin',
   'Fredin FC',
-  'Lang olodelsesso',
+  'Frocinone',
+  'Hadjuk Spanato',
+  'Minotorino',
   'Napolethanos',
   'One Pisa',
+  'PASSAMO ALLE COSE FORMALI',
   'QARABAGGIO',
-  'Rocks Pirates',
   'Rubin Kebab',
   'Sesko e Sambia',
-  'Soh Matta',
+  'VILTRUM',
 ] as const

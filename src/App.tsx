@@ -6,6 +6,7 @@ import { PageLoader } from './components/ui'
 import { resyncPush } from './lib/push'
 import LoginPage from './pages/Login'
 import ChooseTeamPage from './pages/ChooseTeamPage'
+import HomePage from './pages/Home'
 import AuctionsPage from './pages/Auctions'
 import ArchivePage from './pages/Archive'
 import PlayersPage from './pages/Players'
@@ -52,7 +53,7 @@ export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/asta/aste" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/asta" element={<Navigate to="/asta/aste" replace />} />
         <Route path="/asta/giocatori" element={<PlayersPage />} />
         <Route path="/asta/aste" element={<AuctionsPage />} />
@@ -66,8 +67,8 @@ export default function App() {
         <Route path="/tornei" element={<TorneiPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/profilo" element={<ProfilePage />} />
-        <Route path="/admin" element={isAdmin ? <AdminPage /> : <Navigate to="/asta/aste" replace />} />
-        <Route path="*" element={<Navigate to="/asta/aste" replace />} />
+        <Route path="/admin" element={isAdmin ? <AdminPage /> : <Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
   )

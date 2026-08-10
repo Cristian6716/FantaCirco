@@ -619,28 +619,46 @@ export type Database = {
         Row: {
           assigned_to: string | null
           created_at: string
+          fantacalcio_id: number | null
           id: number
           name: string
+          owner_team: string | null
+          price: number | null
+          quotazione: number | null
+          quotazione_mantra: number | null
           real_team: string | null
           roles: string[]
+          ruolo: string | null
           status: Database["public"]["Enums"]["player_status"]
         }
         Insert: {
           assigned_to?: string | null
           created_at?: string
+          fantacalcio_id?: number | null
           id?: never
           name: string
+          owner_team?: string | null
+          price?: number | null
+          quotazione?: number | null
+          quotazione_mantra?: number | null
           real_team?: string | null
           roles?: string[]
+          ruolo?: string | null
           status?: Database["public"]["Enums"]["player_status"]
         }
         Update: {
           assigned_to?: string | null
           created_at?: string
+          fantacalcio_id?: number | null
           id?: never
           name?: string
+          owner_team?: string | null
+          price?: number | null
+          quotazione?: number | null
+          quotazione_mantra?: number | null
           real_team?: string | null
           roles?: string[]
+          ruolo?: string | null
           status?: Database["public"]["Enums"]["player_status"]
         }
         Relationships: [
