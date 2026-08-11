@@ -15,7 +15,13 @@ import PronosticaPage from './pages/pronostici/PronosticaPage'
 import ClassificaPage from './pages/pronostici/ClassificaPage'
 import StoricoPage from './pages/pronostici/StoricoPage'
 import PodioPage from './pages/pronostici/PodioPage'
-import TorneiPage from './pages/Tornei'
+import CampionatoPage from './pages/competizioni/CampionatoPage'
+import CoppaPage from './pages/competizioni/CoppaPage'
+import BattleRoyalePage from './pages/competizioni/BattleRoyalePage'
+import CampionatoStatsPage from './pages/statistiche/CampionatoStatsPage'
+import MercatoStatsPage from './pages/statistiche/MercatoStatsPage'
+import ScontriDirettiPage from './pages/statistiche/ScontriDirettiPage'
+import ScambiStatsPage from './pages/statistiche/ScambiStatsPage'
 import RankingPage from './pages/Ranking'
 import AdminPage from './pages/Admin'
 import ProfilePage from './pages/Profile'
@@ -64,7 +70,16 @@ export default function App() {
         <Route path="/pronostici/classifica" element={<ClassificaPage />} />
         <Route path="/pronostici/storico" element={<StoricoPage />} />
         <Route path="/pronostici/podio" element={<PodioPage />} />
-        <Route path="/tornei" element={<TorneiPage />} />
+        <Route path="/tornei" element={<Navigate to="/competizioni" replace />} />
+        <Route path="/competizioni" element={<Navigate to="/competizioni/campionato" replace />} />
+        <Route path="/competizioni/campionato" element={<CampionatoPage />} />
+        <Route path="/competizioni/coppa" element={<CoppaPage />} />
+        <Route path="/competizioni/battle-royale" element={<BattleRoyalePage />} />
+        <Route path="/statistiche" element={<Navigate to="/statistiche/campionato" replace />} />
+        <Route path="/statistiche/campionato" element={<CampionatoStatsPage />} />
+        <Route path="/statistiche/mercato" element={<MercatoStatsPage />} />
+        <Route path="/statistiche/scontri-diretti" element={<ScontriDirettiPage />} />
+        <Route path="/statistiche/scambi" element={<ScambiStatsPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/profilo" element={<ProfilePage />} />
         <Route path="/admin" element={isAdmin ? <AdminPage /> : <Navigate to="/" replace />} />

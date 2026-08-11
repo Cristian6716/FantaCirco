@@ -5,6 +5,8 @@ import { useMyCredits, useRealtime } from '../lib/queries'
 import { useLeagueRealtime } from '../lib/leagueQueries'
 import { usePodioRealtime } from '../lib/podio'
 import { useRankingRealtime } from '../lib/rankingQueries'
+import { useStatisticheRealtime } from '../lib/statisticheQueries'
+import { useScambiRealtime } from '../lib/scambi'
 
 function CreditStat({ label, value, color }: { label: string; value: number | null | undefined; color: string }) {
   return (
@@ -161,7 +163,27 @@ const SECTIONS: Section[] = [
       { to: '/pronostici/podio', label: 'Podio' },
     ],
   },
-  { key: 'tornei', label: 'Tornei', icon: '🏆', to: '/tornei' },
+  {
+    key: 'competizioni',
+    label: 'Competizioni',
+    icon: '🏆',
+    items: [
+      { to: '/competizioni/campionato', label: 'Campionato' },
+      { to: '/competizioni/coppa', label: 'Coppa' },
+      { to: '/competizioni/battle-royale', label: 'Battle Royale' },
+    ],
+  },
+  {
+    key: 'statistiche',
+    label: 'Statistiche',
+    icon: '📈',
+    items: [
+      { to: '/statistiche/campionato', label: 'Campionato' },
+      { to: '/statistiche/mercato', label: 'Mercato' },
+      { to: '/statistiche/scontri-diretti', label: 'Scontri diretti' },
+      { to: '/statistiche/scambi', label: 'Scambi' },
+    ],
+  },
   { key: 'ranking', label: 'Ranking', icon: '📊', to: '/ranking' },
 ]
 
@@ -257,6 +279,8 @@ export function Layout({ children }: { children: ReactNode }) {
   useLeagueRealtime()
   usePodioRealtime()
   useRankingRealtime()
+  useStatisticheRealtime()
+  useScambiRealtime()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (

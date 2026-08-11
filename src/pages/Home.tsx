@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
 import { useManagers, useMyCredits, usePlayers, type Player } from '../lib/queries'
 import { EmptyState, PageLoader, RoleBadge } from '../components/ui'
 import { roleRank } from '../lib/format'
+import { releasePlayer } from '../lib/api'
+import { useConfirm } from '../components/Confirm'
+import { useToast } from '../components/Toast'
 
 interface Roster {
   team: string
@@ -11,7 +15,7 @@ interface Roster {
 }
 
 export default function HomePage() {
-  const { manager } = useAuth()
+  const { manager, isAdmin } = useAuth()
   const { data: players, isLoading } = usePlayers()
   const { data: managers } = useManagers()
   const credits = useMyCredits()
@@ -93,6 +97,7 @@ export default function HomePage() {
             <TeamPanel
               roster={active}
               isMine={active.team === myTeam}
+              canRelease={active.team === myTeam || isAdmin}
               available={credits?.available}
               locked={credits?.locked}
               left={creditsByTeam.get(active.team)}
@@ -112,6 +117,7 @@ export default function HomePage() {
             <TeamPanel
               roster={mine}
               isMine
+              canRelease
               available={credits?.available}
               locked={credits?.locked}
               left={creditsByTeam.get(mine.team)}
@@ -161,7 +167,7 @@ export default function HomePage() {
                       </button>
                       {open && (
                         <div className="border-t border-border px-3 pb-3 pt-3">
-                          <RosterList players={r.players} />
+                          <RosterList players={r.players} canRelease={isAdmin} />
                         </div>
                       )}
                     </div>
@@ -205,12 +211,14 @@ function TeamLink({
 function TeamPanel({
   roster,
   isMine,
+  canRelease,
   available,
   locked,
   left,
 }: {
   roster: Roster
   isMine: boolean
+  canRelease?: boolean
   available?: number | null
   locked?: number | null
   left?: number
@@ -238,7 +246,7 @@ function TeamPanel({
         )}
       </div>
 
-      <RosterList players={roster.players} />
+      <RosterList players={roster.players} canRelease={canRelease} />
     </section>
   )
 }
@@ -260,7 +268,7 @@ function Stat({
   )
 }
 
-function RosterList({ players }: { players: Player[] }) {
+function RosterList({ players, canRelease }: { players: Player[]; canRelease?: boolean }) {
   return (
     <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
       {players.map((p) => (
@@ -276,8 +284,48 @@ function RosterList({ players }: { players: Player[] }) {
           <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-200">
             {p.price ?? 0}
           </span>
+          {canRelease && <ReleaseButton player={p} />}
         </div>
       ))}
     </div>
+  )
+}
+
+function ReleaseButton({ player }: { player: Player }) {
+  const confirm = useConfirm()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [loading, setLoading] = useState(false)
+
+  async function onRelease() {
+    const ok = await confirm({
+      title: `Svincolare ${player.name}?`,
+      message: `Tornerà tra gli svincolati e ${player.price ? `i ${player.price} crediti pagati verranno rimborsati per intero` : 'nessun credito verrà scalato'}. L'azione è definitiva.`,
+      confirmLabel: 'Svincola',
+      danger: true,
+    })
+    if (!ok) return
+    setLoading(true)
+    try {
+      await releasePlayer(player.id)
+      qc.invalidateQueries({ queryKey: ['players'] })
+      qc.invalidateQueries({ queryKey: ['managers'] })
+      qc.invalidateQueries({ queryKey: ['credits'] })
+      toast.success(`${player.name} svincolato.`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={onRelease}
+      disabled={loading}
+      className="shrink-0 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-200 active:scale-95 disabled:opacity-50"
+    >
+      {loading ? '…' : 'Svincola'}
+    </button>
   )
 }

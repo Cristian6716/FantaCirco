@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      albo_oro: {
+        Row: {
+          competizione: string
+          created_at: string
+          id: number
+          note: string | null
+          squadra: string
+          stagione: string
+        }
+        Insert: {
+          competizione: string
+          created_at?: string
+          id?: number
+          note?: string | null
+          squadra: string
+          stagione: string
+        }
+        Update: {
+          competizione?: string
+          created_at?: string
+          id?: number
+          note?: string | null
+          squadra?: string
+          stagione?: string
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           key: string
@@ -1104,6 +1131,130 @@ export type Database = {
           },
         ]
       }
+      scambi: {
+        Row: {
+          created_by: string | null
+          crediti_a: number
+          crediti_b: number
+          data: string
+          id: number
+          manager_a: string | null
+          manager_b: string | null
+          note: string | null
+          squadra_a: string
+          squadra_b: string
+        }
+        Insert: {
+          created_by?: string | null
+          crediti_a?: number
+          crediti_b?: number
+          data?: string
+          id?: never
+          manager_a?: string | null
+          manager_b?: string | null
+          note?: string | null
+          squadra_a: string
+          squadra_b: string
+        }
+        Update: {
+          created_by?: string | null
+          crediti_a?: number
+          crediti_b?: number
+          data?: string
+          id?: never
+          manager_a?: string | null
+          manager_b?: string | null
+          note?: string | null
+          squadra_a?: string
+          squadra_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scambi_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambi_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambi_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambi_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambi_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambi_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scambio_giocatori: {
+        Row: {
+          a: string
+          da: string
+          giocatore: string
+          id: number
+          player_id: number | null
+          scambio_id: number
+        }
+        Insert: {
+          a: string
+          da: string
+          giocatore: string
+          id?: never
+          player_id?: number | null
+          scambio_id: number
+        }
+        Update: {
+          a?: string
+          da?: string
+          giocatore?: string
+          id?: never
+          player_id?: number | null
+          scambio_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scambio_giocatori_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scambio_giocatori_scambio_id_fkey"
+            columns: ["scambio_id"]
+            isOneToOne: false
+            referencedRelation: "scambi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       set_logs: {
         Row: {
           created_at: string
@@ -1151,6 +1302,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      statistiche_mercato: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string | null
+          id: number
+          testo: string
+          titolo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: string | null
+          id?: number
+          testo: string
+          titolo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string | null
+          id?: number
+          testo?: string
+          titolo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statistiche_mercato_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statistiche_mercato_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      storico_partite: {
+        Row: {
+          casa: string
+          created_at: string
+          giornata: number
+          gol_casa: number
+          gol_trasferta: number
+          id: number
+          stagione: string
+          trasferta: string
+        }
+        Insert: {
+          casa: string
+          created_at?: string
+          giornata: number
+          gol_casa: number
+          gol_trasferta: number
+          id?: number
+          stagione: string
+          trasferta: string
+        }
+        Update: {
+          casa?: string
+          created_at?: string
+          giornata?: number
+          gol_casa?: number
+          gol_trasferta?: number
+          id?: number
+          stagione?: string
+          trasferta?: string
+        }
+        Relationships: []
       }
       torneo_overrides: {
         Row: {
@@ -1358,12 +1584,42 @@ export type Database = {
           team_name: string | null
           username: string | null
         }
+        Insert: {
+          available?: never
+          credits_total?: number | null
+          display_name?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          locked?: never
+          roster_free?: never
+          roster_max?: never
+          roster_used?: never
+          team_name?: string | null
+          username?: string | null
+        }
+        Update: {
+          available?: never
+          credits_total?: number | null
+          display_name?: string | null
+          id?: string | null
+          is_admin?: boolean | null
+          locked?: never
+          roster_free?: never
+          roster_max?: never
+          roster_used?: never
+          team_name?: string | null
+          username?: string | null
+        }
         Relationships: []
       }
     }
     Functions: {
       _advance_auction: { Args: { p_auction: number }; Returns: undefined }
       _end_auction: { Args: { p_auction: number }; Returns: undefined }
+      _expire_autobids: {
+        Args: { p_auction: number; p_notify?: boolean }
+        Returns: string[]
+      }
       _maybe_end_no_challengers: {
         Args: { p_auction: number }
         Returns: undefined
@@ -1402,6 +1658,22 @@ export type Database = {
       available_credits: { Args: { p_manager: string }; Returns: number }
       cancel_autobid: { Args: { p_auction: number }; Returns: undefined }
       claim_team: { Args: { p_team_name: string }; Returns: undefined }
+      committed_credits: {
+        Args: { p_exclude?: number; p_manager: string }
+        Returns: number
+      }
+      esegui_scambio: {
+        Args: {
+          p_crediti_a?: number
+          p_crediti_b?: number
+          p_manager_a: string
+          p_manager_b: string
+          p_note?: string
+          p_players_a?: number[]
+          p_players_b?: number[]
+        }
+        Returns: number
+      }
       is_admin: { Args: never; Returns: boolean }
       list_login_profiles: {
         Args: never
@@ -1412,6 +1684,7 @@ export type Database = {
         }[]
       }
       locked_credits: { Args: { p_manager: string }; Returns: number }
+      max_roster: { Args: never; Returns: number }
       place_bid: {
         Args: { p_amount: number; p_auction: number }
         Returns: undefined
@@ -1426,6 +1699,11 @@ export type Database = {
           nome: string
           punti: number
         }[]
+      }
+      release_player: { Args: { p_player: number }; Returns: undefined }
+      roster_committed: {
+        Args: { p_exclude?: number; p_manager: string }
+        Returns: number
       }
       set_autobid: {
         Args: { p_auction: number; p_max: number }

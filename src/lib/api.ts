@@ -84,6 +84,11 @@ export async function deletePlayer(id: number): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export async function releasePlayer(id: number): Promise<void> {
+  const { error } = await supabase.rpc('release_player', { p_player: id })
+  if (error) throw new Error(error.message)
+}
+
 export async function updateManagerCredits(id: string, credits: number): Promise<void> {
   const { error } = await supabase.from('managers').update({ credits_total: credits }).eq('id', id)
   if (error) throw new Error(error.message)

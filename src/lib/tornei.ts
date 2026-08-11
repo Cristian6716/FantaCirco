@@ -188,6 +188,86 @@ export function calculateStandings(giornate: GiornateScores, teams: string[]): B
   return { classifica, storico, scontriPerGiornata }
 }
 
+// ---- Campionato (calendario a scontri fissi, come una vera Serie A) ----
+
+export interface PartitaResult {
+  giornata: number
+  casa: string
+  trasferta: string
+  gol_casa: number | null
+  gol_trasferta: number | null
+}
+
+export interface CampionatoRow {
+  team: string
+  pos: number
+  g: number
+  w: number
+  d: number
+  l: number
+  gf: number
+  gs: number
+  dr: number
+  pts: number
+}
+
+/**
+ * Classifica del campionato dalle partite del calendario ufficiale (stessa
+ * tabella `partite` usata per i pronostici): i gol sono quelli già calcolati
+ * e salvati dall'admin per ogni giornata.
+ */
+export function calculateCampionatoStandings(partite: PartitaResult[], teams: string[]): CampionatoRow[] {
+  const stats: Record<string, CampionatoRow> = {}
+  teams.forEach((team) => {
+    stats[team] = { team, pos: 0, g: 0, w: 0, d: 0, l: 0, gf: 0, gs: 0, dr: 0, pts: 0 }
+  })
+
+  for (const p of partite) {
+    if (p.gol_casa == null || p.gol_trasferta == null) continue
+    const casa = stats[p.casa]
+    const trasferta = stats[p.trasferta]
+    if (!casa || !trasferta) continue
+
+    casa.g++
+    trasferta.g++
+    casa.gf += p.gol_casa
+    casa.gs += p.gol_trasferta
+    trasferta.gf += p.gol_trasferta
+    trasferta.gs += p.gol_casa
+
+    if (p.gol_casa > p.gol_trasferta) {
+      casa.w++
+      casa.pts += 3
+      trasferta.l++
+    } else if (p.gol_trasferta > p.gol_casa) {
+      trasferta.w++
+      trasferta.pts += 3
+      casa.l++
+    } else {
+      casa.d++
+      trasferta.d++
+      casa.pts += 1
+      trasferta.pts += 1
+    }
+  }
+
+  const classifica = Object.values(stats).sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts
+    const drA = a.gf - a.gs
+    const drB = b.gf - b.gs
+    if (drB !== drA) return drB - drA
+    if (b.gf !== a.gf) return b.gf - a.gf
+    return a.team.localeCompare(b.team, 'it')
+  })
+
+  classifica.forEach((team, idx) => {
+    team.pos = idx + 1
+    team.dr = team.gf - team.gs
+  })
+
+  return classifica
+}
+
 // ---- Bracket a eliminazione ----
 
 export interface TorneoMatch {

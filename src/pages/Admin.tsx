@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as XLSX from 'xlsx'
-import { useAuctions, useCredits, useManagers, usePlayers, type Auction, type Manager } from '../lib/queries'
+import { useAuctions, useCredits, useManagers, usePlayers, type Auction, type Manager, type Player } from '../lib/queries'
 import { PageLoader, RoleBadge, Spinner, StatusBadge } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/Confirm'
@@ -41,11 +41,31 @@ import {
   useAdminStartPodioRound,
   usePodioRounds,
 } from '../lib/podio'
+import {
+  useAdminAddAlboOro,
+  useAdminAddStatisticaMercato,
+  useAdminAddStoricoPartite,
+  useAdminDeleteAlboOro,
+  useAdminDeleteStatisticaMercato,
+  useAdminDeleteStoricoPartita,
+  useAdminDeleteStoricoStagione,
+  useAdminUpdateStatisticaMercato,
+  useAlboOro,
+  useStatisticheMercato,
+  useStoricoPartite,
+} from '../lib/statisticheQueries'
+import {
+  useAdminDeleteScambio,
+  useAdminEseguiScambio,
+  useScambi,
+  useScambioGiocatori,
+  type ScambioGiocatore,
+} from '../lib/scambi'
 
 const inputCls =
   'w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-white outline-none focus:border-accent'
 
-type Tab = 'managers' | 'players' | 'auctions' | 'giornate' | 'podio'
+type Tab = 'managers' | 'players' | 'auctions' | 'giornate' | 'podio' | 'scambi' | 'statistiche'
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('managers')
@@ -68,12 +88,20 @@ export default function AdminPage() {
         <TabBtn active={tab === 'podio'} onClick={() => setTab('podio')}>
           Podio
         </TabBtn>
+        <TabBtn active={tab === 'scambi'} onClick={() => setTab('scambi')}>
+          Scambi
+        </TabBtn>
+        <TabBtn active={tab === 'statistiche'} onClick={() => setTab('statistiche')}>
+          Statistiche
+        </TabBtn>
       </div>
       {tab === 'managers' && <ManagersTab />}
       {tab === 'players' && <PlayersTab />}
       {tab === 'auctions' && <AuctionsTab />}
       {tab === 'giornate' && <GiornateTab />}
       {tab === 'podio' && <PodioTab />}
+      {tab === 'scambi' && <ScambiTab />}
+      {tab === 'statistiche' && <StatisticheTab />}
     </div>
   )
 }
@@ -1342,6 +1370,688 @@ function PodioTab() {
             )}
           </div>
         </>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- Scambi: mercato tra rose ---------------- */
+
+function ScambiTab() {
+  const { data: managers, isLoading: loadingManagers } = useManagers()
+  const { data: players, isLoading: loadingPlayers } = usePlayers()
+  const { data: credits } = useCredits()
+  const { data: scambi, isLoading: loadingScambi } = useScambi()
+  const { data: scambioGiocatori } = useScambioGiocatori()
+  const eseguiScambio = useAdminEseguiScambio()
+  const deleteScambio = useAdminDeleteScambio()
+  const toast = useToast()
+  const confirm = useConfirm()
+
+  const squadre = useMemo(
+    () =>
+      (managers ?? [])
+        .filter((m) => !!m.team_name)
+        .sort((a, b) => (a.team_name || a.display_name).localeCompare(b.team_name || b.display_name)),
+    [managers],
+  )
+
+  const [managerAId, setManagerAId] = useState('')
+  const [managerBId, setManagerBId] = useState('')
+  const [selectedA, setSelectedA] = useState<Set<number>>(new Set())
+  const [selectedB, setSelectedB] = useState<Set<number>>(new Set())
+  const [creditiA, setCreditiA] = useState('0')
+  const [creditiB, setCreditiB] = useState('0')
+  const [note, setNote] = useState('')
+
+  const managerA = squadre.find((m) => m.id === managerAId)
+  const managerB = squadre.find((m) => m.id === managerBId)
+  const nomeA = managerA?.team_name || managerA?.display_name || ''
+  const nomeB = managerB?.team_name || managerB?.display_name || ''
+  const creditsA = credits?.find((c) => c.id === managerAId)
+  const creditsB = credits?.find((c) => c.id === managerBId)
+
+  const rosterA = useMemo(
+    () =>
+      (players ?? [])
+        .filter((p) => p.assigned_to === managerAId && p.status === 'assigned')
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [players, managerAId],
+  )
+  const rosterB = useMemo(
+    () =>
+      (players ?? [])
+        .filter((p) => p.assigned_to === managerBId && p.status === 'assigned')
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [players, managerBId],
+  )
+
+  function toggle(set: Set<number>, setSet: (s: Set<number>) => void, id: number) {
+    const next = new Set(set)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSet(next)
+  }
+
+  function resetForm() {
+    setSelectedA(new Set())
+    setSelectedB(new Set())
+    setCreditiA('0')
+    setCreditiB('0')
+    setNote('')
+  }
+
+  const numCreditiA = Number(creditiA) || 0
+  const numCreditiB = Number(creditiB) || 0
+  const canSubmit =
+    !!managerAId && !!managerBId && managerAId !== managerBId &&
+    (selectedA.size > 0 || selectedB.size > 0 || numCreditiA > 0 || numCreditiB > 0)
+
+  async function eseguiScambioClick() {
+    if (!managerA || !managerB) return
+    const nomiA = rosterA.filter((p) => selectedA.has(p.id)).map((p) => p.name)
+    const nomiB = rosterB.filter((p) => selectedB.has(p.id)).map((p) => p.name)
+    const righe: string[] = []
+    if (nomiA.length) righe.push(`${nomeA} cede: ${nomiA.join(', ')}`)
+    if (nomiB.length) righe.push(`${nomeB} cede: ${nomiB.join(', ')}`)
+    if (numCreditiA > 0) righe.push(`${nomeA} cede anche ${numCreditiA} crediti`)
+    if (numCreditiB > 0) righe.push(`${nomeB} cede anche ${numCreditiB} crediti`)
+
+    const ok = await confirm({
+      title: 'Confermare lo scambio?',
+      message: righe.join('\n'),
+      confirmLabel: 'Esegui scambio',
+    })
+    if (!ok) return
+    try {
+      await eseguiScambio.mutateAsync({
+        managerA: managerAId,
+        managerB: managerBId,
+        playersA: Array.from(selectedA),
+        playersB: Array.from(selectedB),
+        creditiA: numCreditiA,
+        creditiB: numCreditiB,
+        note: note.trim() || null,
+      })
+      toast.success('Scambio eseguito')
+      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  async function rimuoviScambio(id: number, label: string) {
+    const ok = await confirm({
+      title: 'Eliminare la registrazione dello scambio?',
+      message: `${label}\n\nViene rimossa solo la voce dallo storico: giocatori e crediti già spostati non vengono ripristinati automaticamente.`,
+      danger: true,
+      confirmLabel: 'Elimina',
+    })
+    if (!ok) return
+    try {
+      await deleteScambio.mutateAsync(id)
+      toast.success('Registrazione eliminata')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  const giocatoriPerScambio = useMemo(() => {
+    const map = new Map<number, ScambioGiocatore[]>()
+    for (const g of scambioGiocatori ?? []) {
+      const arr = map.get(g.scambio_id) ?? []
+      arr.push(g)
+      map.set(g.scambio_id, arr)
+    }
+    return map
+  }, [scambioGiocatori])
+
+  if (loadingManagers || loadingPlayers || loadingScambi) return <PageLoader />
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h2 className="text-sm font-semibold text-slate-200">Nuovo scambio</h2>
+        <p className="mt-1 text-xs text-slate-400">
+          Seleziona due squadre, i giocatori che si scambiano ed eventuali crediti a saldo.
+        </p>
+
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <select
+            className={inputCls}
+            value={managerAId}
+            onChange={(e) => {
+              setManagerAId(e.target.value)
+              setSelectedA(new Set())
+            }}
+          >
+            <option value="">Squadra A…</option>
+            {squadre
+              .filter((m) => m.id !== managerBId)
+              .map((m) => (
+                <option key={m.id} value={m.id!}>
+                  {m.team_name || m.display_name}
+                </option>
+              ))}
+          </select>
+          <select
+            className={inputCls}
+            value={managerBId}
+            onChange={(e) => {
+              setManagerBId(e.target.value)
+              setSelectedB(new Set())
+            }}
+          >
+            <option value="">Squadra B…</option>
+            {squadre
+              .filter((m) => m.id !== managerAId)
+              .map((m) => (
+                <option key={m.id} value={m.id!}>
+                  {m.team_name || m.display_name}
+                </option>
+              ))}
+          </select>
+        </div>
+
+        {managerAId && managerBId && (
+          <>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <RosterPicker title={`${nomeA} cede`} players={rosterA} selected={selectedA} onToggle={(id) => toggle(selectedA, setSelectedA, id)} />
+              <RosterPicker title={`${nomeB} cede`} players={rosterB} selected={selectedB} onToggle={(id) => toggle(selectedB, setSelectedB, id)} />
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-400">
+                  Crediti da {nomeA} ({creditsA?.credits_total ?? 0} tot.)
+                </label>
+                <input
+                  className={`${inputCls} mt-1`}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={creditiA}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setCreditiA(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">
+                  Crediti da {nomeB} ({creditsB?.credits_total ?? 0} tot.)
+                </label>
+                <input
+                  className={`${inputCls} mt-1`}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={creditiB}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setCreditiB(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
+
+            <input
+              className={`${inputCls} mt-2`}
+              placeholder="Nota (facoltativa)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+
+            <button
+              onClick={eseguiScambioClick}
+              disabled={!canSubmit || eseguiScambio.isPending}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-strong py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {eseguiScambio.isPending ? <Spinner /> : 'Esegui scambio'}
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-slate-200">Storico scambi</h3>
+        {!scambi || scambi.length === 0 ? (
+          <p className="mt-2 text-xs text-slate-500">Nessuno scambio registrato.</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {scambi.map((s) => {
+              const giocatori = giocatoriPerScambio.get(s.id) ?? []
+              const daA = giocatori.filter((g) => g.da === s.squadra_a)
+              const daB = giocatori.filter((g) => g.da === s.squadra_b)
+              const label = `${s.squadra_a} ↔ ${s.squadra_b}`
+              return (
+                <div key={s.id} className="rounded-lg border border-border bg-surface-2 p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white">{label}</p>
+                      <p className="text-xs text-slate-500">{new Date(s.data).toLocaleString('it-IT')}</p>
+                    </div>
+                    <button onClick={() => rimuoviScambio(s.id, label)} className="shrink-0 text-xs text-rose-300">
+                      Elimina
+                    </button>
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-slate-300">
+                    {daA.length > 0 && (
+                      <p>
+                        {s.squadra_a} → {s.squadra_b}: {daA.map((g) => g.giocatore).join(', ')}
+                      </p>
+                    )}
+                    {daB.length > 0 && (
+                      <p>
+                        {s.squadra_b} → {s.squadra_a}: {daB.map((g) => g.giocatore).join(', ')}
+                      </p>
+                    )}
+                    {s.crediti_a > 0 && (
+                      <p>
+                        {s.squadra_a} → {s.squadra_b}: {s.crediti_a} crediti
+                      </p>
+                    )}
+                    {s.crediti_b > 0 && (
+                      <p>
+                        {s.squadra_b} → {s.squadra_a}: {s.crediti_b} crediti
+                      </p>
+                    )}
+                    {s.note && <p className="text-slate-500">Nota: {s.note}</p>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RosterPicker({
+  title,
+  players,
+  selected,
+  onToggle,
+}: {
+  title: string
+  players: Player[]
+  selected: Set<number>
+  onToggle: (id: number) => void
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 p-2">
+      <p className="text-xs font-semibold text-slate-300">{title}</p>
+      <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto">
+        {players.length === 0 ? (
+          <p className="text-xs text-slate-500">Rosa vuota.</p>
+        ) : (
+          players.map((p) => (
+            <label key={p.id} className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-200">
+              <input
+                type="checkbox"
+                checked={selected.has(p.id)}
+                onChange={() => onToggle(p.id)}
+                className="h-3.5 w-3.5 shrink-0 accent-emerald-500"
+              />
+              <RoleBadge roles={p.roles} />
+              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+            </label>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- Statistiche: storico partite, albo d'oro, mercato ---------------- */
+
+function StatisticheTab() {
+  return (
+    <div className="space-y-4">
+      <StoricoPartiteSection />
+      <AlboOroSection />
+      <MercatoSection />
+    </div>
+  )
+}
+
+function parseStoricoPartite(text: string): { giornata: number; casa: string; trasferta: string; gol_casa: number; gol_trasferta: number }[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const useTab = lines[0]?.includes('\t')
+  const rows = lines.map((line) => (useTab ? line.split('\t') : splitCsvLine(line)).map((c) => c.trim()))
+  const firstCell = rows[0]?.[0]?.toLowerCase()
+  const dataRows = firstCell === 'giornata' ? rows.slice(1) : rows
+
+  return dataRows
+    .map((parts) => ({
+      giornata: parseInt(parts[0], 10),
+      casa: parts[1],
+      trasferta: parts[2],
+      gol_casa: parseInt(parts[3], 10),
+      gol_trasferta: parseInt(parts[4], 10),
+    }))
+    .filter(
+      (r) =>
+        Number.isFinite(r.giornata) && r.casa && r.trasferta && Number.isFinite(r.gol_casa) && Number.isFinite(r.gol_trasferta),
+    )
+}
+
+function StoricoPartiteSection() {
+  const { data: storico } = useStoricoPartite()
+  const addRows = useAdminAddStoricoPartite()
+  const deleteRow = useAdminDeleteStoricoPartita()
+  const deleteStagione = useAdminDeleteStoricoStagione()
+  const toast = useToast()
+  const confirm = useConfirm()
+
+  const [stagione, setStagione] = useState('')
+  const [testo, setTesto] = useState('')
+  const [openStagione, setOpenStagione] = useState<string | null>(null)
+
+  const stagioni = useMemo(() => {
+    const map = new Map<string, typeof storico>()
+    for (const r of storico ?? []) {
+      if (!map.has(r.stagione)) map.set(r.stagione, [])
+      map.get(r.stagione)!.push(r)
+    }
+    return Array.from(map.entries())
+  }, [storico])
+
+  async function importa() {
+    const parsed = parseStoricoPartite(testo)
+    if (!stagione.trim() || parsed.length === 0) {
+      toast.error('Inserisci stagione e almeno una riga valida')
+      return
+    }
+    try {
+      await addRows.mutateAsync(parsed.map((r) => ({ ...r, stagione: stagione.trim() })))
+      toast.success(`${parsed.length} partite importate`)
+      setTesto('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  async function rimuoviStagione(s: string) {
+    const ok = await confirm({
+      title: `Eliminare "${s}"?`,
+      message: 'Tutte le partite di questa stagione storica verranno rimosse.',
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      await deleteStagione.mutateAsync(s)
+      toast.success('Stagione eliminata')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <h3 className="text-sm font-semibold text-slate-200">Storico partite (stagioni passate)</h3>
+      <p className="mt-1 text-xs text-slate-400">
+        Calendario di una stagione già conclusa: alimenta i record di "Statistiche campionato" e gli scontri
+        diretti. Una riga per partita: giornata, casa, trasferta, gol casa, gol trasferta (CSV o incolla da
+        Excel).
+      </p>
+      <input
+        value={stagione}
+        onChange={(e) => setStagione(e.target.value)}
+        placeholder='Nome stagione (es. "2024/25")'
+        className={`${inputCls} mt-2`}
+      />
+      <textarea
+        value={testo}
+        onChange={(e) => setTesto(e.target.value)}
+        placeholder={'1,One Pisa,QARABAGGIO,2,1\n1,Sesko e Sambia,Napolethanos,0,0'}
+        rows={5}
+        className={`${inputCls} mt-2 font-mono text-xs`}
+      />
+      <button
+        onClick={importa}
+        disabled={addRows.isPending}
+        className="mt-2 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        Importa
+      </button>
+
+      {stagioni.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {stagioni.map(([s, rows]) => (
+            <div key={s} className="rounded-lg border border-border bg-surface-2">
+              <div className="flex items-center justify-between gap-2 px-3 py-2">
+                <button
+                  onClick={() => setOpenStagione((o) => (o === s ? null : s))}
+                  className="min-w-0 flex-1 truncate text-left text-sm font-medium text-white"
+                >
+                  {s} · {rows?.length ?? 0} partite
+                </button>
+                <button
+                  onClick={() => rimuoviStagione(s)}
+                  className="shrink-0 rounded-lg border border-rose-500/40 px-2 py-1 text-xs text-rose-300"
+                >
+                  Elimina tutto
+                </button>
+              </div>
+              {openStagione === s && (
+                <div className="space-y-1 border-t border-border px-3 py-2">
+                  {(rows ?? []).map((r) => (
+                    <div key={r.id} className="flex items-center justify-between text-xs text-slate-300">
+                      <span>
+                        G{r.giornata} · {r.casa} {r.gol_casa}-{r.gol_trasferta} {r.trasferta}
+                      </span>
+                      <button
+                        onClick={() => deleteRow.mutate(r.id)}
+                        className="shrink-0 text-slate-500 active:text-rose-300"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const COMPETIZIONI = [
+  { value: 'campionato', label: 'Campionato' },
+  { value: 'coppa', label: 'Coppa' },
+  { value: 'battle_royale', label: 'Battle Royale' },
+] as const
+
+function AlboOroSection() {
+  const { data: entries } = useAlboOro()
+  const addEntry = useAdminAddAlboOro()
+  const deleteEntry = useAdminDeleteAlboOro()
+  const toast = useToast()
+
+  const [stagione, setStagione] = useState('')
+  const [competizione, setCompetizione] = useState<string>('campionato')
+  const [squadra, setSquadra] = useState('')
+  const [note, setNote] = useState('')
+
+  async function aggiungi() {
+    if (!stagione.trim() || !squadra.trim()) {
+      toast.error('Stagione e squadra sono obbligatorie')
+      return
+    }
+    try {
+      await addEntry.mutateAsync({
+        stagione: stagione.trim(),
+        competizione,
+        squadra: squadra.trim(),
+        note: note.trim() || null,
+      })
+      toast.success('Trofeo aggiunto')
+      setSquadra('')
+      setNote('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <h3 className="text-sm font-semibold text-slate-200">Albo d'oro</h3>
+      <p className="mt-1 text-xs text-slate-400">Un trofeo per squadra/stagione/competizione.</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <input
+          value={stagione}
+          onChange={(e) => setStagione(e.target.value)}
+          placeholder='Stagione (es. "2024/25")'
+          className={inputCls}
+        />
+        <select value={competizione} onChange={(e) => setCompetizione(e.target.value)} className={inputCls}>
+          {COMPETIZIONI.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <input
+          value={squadra}
+          onChange={(e) => setSquadra(e.target.value)}
+          placeholder="Squadra vincitrice"
+          className={`${inputCls} col-span-2`}
+        />
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Nota (opzionale)"
+          className={`${inputCls} col-span-2`}
+        />
+      </div>
+      <button
+        onClick={aggiungi}
+        disabled={addEntry.isPending}
+        className="mt-2 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        Aggiungi trofeo
+      </button>
+
+      {entries && entries.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {entries.map((e) => (
+            <div
+              key={e.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs text-slate-300"
+            >
+              <span>
+                {e.stagione} · {COMPETIZIONI.find((c) => c.value === e.competizione)?.label ?? e.competizione} ·{' '}
+                <span className="font-semibold text-white">{e.squadra}</span>
+                {e.note && <span className="text-slate-500"> ({e.note})</span>}
+              </span>
+              <button onClick={() => deleteEntry.mutate(e.id)} className="shrink-0 text-slate-500 active:text-rose-300">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MercatoSection() {
+  const { data: voci } = useStatisticheMercato()
+  const addVoce = useAdminAddStatisticaMercato()
+  const updateVoce = useAdminUpdateStatisticaMercato()
+  const deleteVoce = useAdminDeleteStatisticaMercato()
+  const toast = useToast()
+
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [titolo, setTitolo] = useState('')
+  const [testo, setTesto] = useState('')
+  const [data, setData] = useState('')
+
+  function resetForm() {
+    setEditingId(null)
+    setTitolo('')
+    setTesto('')
+    setData('')
+  }
+
+  function edit(v: { id: number; titolo: string; testo: string; data: string | null }) {
+    setEditingId(v.id)
+    setTitolo(v.titolo)
+    setTesto(v.testo)
+    setData(v.data ?? '')
+  }
+
+  async function salva() {
+    if (!titolo.trim() || !testo.trim()) {
+      toast.error('Titolo e testo sono obbligatori')
+      return
+    }
+    try {
+      if (editingId != null) {
+        await updateVoce.mutateAsync({ id: editingId, titolo: titolo.trim(), testo: testo.trim(), data: data || null })
+        toast.success('Voce aggiornata')
+      } else {
+        await addVoce.mutateAsync({ titolo: titolo.trim(), testo: testo.trim(), data: data || null })
+        toast.success('Voce aggiunta')
+      }
+      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3">
+      <h3 className="text-sm font-semibold text-slate-200">Statistiche mercato</h3>
+      <p className="mt-1 text-xs text-slate-400">Voci libere: titolo, testo, data opzionale.</p>
+      <div className="mt-2 space-y-2">
+        <input value={titolo} onChange={(e) => setTitolo(e.target.value)} placeholder="Titolo" className={inputCls} />
+        <textarea
+          value={testo}
+          onChange={(e) => setTesto(e.target.value)}
+          placeholder="Testo"
+          rows={3}
+          className={inputCls}
+        />
+        <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} />
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button
+          onClick={salva}
+          disabled={addVoce.isPending || updateVoce.isPending}
+          className="flex-1 rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {editingId != null ? 'Salva modifiche' : 'Aggiungi voce'}
+        </button>
+        {editingId != null && (
+          <button onClick={resetForm} className="rounded-lg border border-border px-3 py-2 text-sm text-slate-300">
+            Annulla
+          </button>
+        )}
+      </div>
+
+      {voci && voci.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {voci.map((v) => (
+            <div key={v.id} className="rounded-lg border border-border bg-surface-2 p-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white">{v.titolo}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{v.testo}</p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <button onClick={() => edit(v)} className="text-xs text-accent">
+                    Modifica
+                  </button>
+                  <button onClick={() => deleteVoce.mutate(v.id)} className="text-xs text-rose-300">
+                    Elimina
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )
