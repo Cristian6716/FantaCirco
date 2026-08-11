@@ -1353,6 +1353,8 @@ export type Database = {
           gol_casa: number
           gol_trasferta: number
           id: number
+          punti_casa: number | null
+          punti_trasferta: number | null
           stagione: string
           trasferta: string
         }
@@ -1363,6 +1365,8 @@ export type Database = {
           gol_casa: number
           gol_trasferta: number
           id?: number
+          punti_casa?: number | null
+          punti_trasferta?: number | null
           stagione: string
           trasferta: string
         }
@@ -1373,6 +1377,8 @@ export type Database = {
           gol_casa?: number
           gol_trasferta?: number
           id?: number
+          punti_casa?: number | null
+          punti_trasferta?: number | null
           stagione?: string
           trasferta?: string
         }

@@ -61,7 +61,16 @@ export function useAdminAddStoricoPartite() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (
-      rows: { stagione: string; giornata: number; casa: string; trasferta: string; gol_casa: number; gol_trasferta: number }[],
+      rows: {
+        stagione: string
+        giornata: number
+        casa: string
+        trasferta: string
+        gol_casa: number
+        gol_trasferta: number
+        punti_casa?: number | null
+        punti_trasferta?: number | null
+      }[],
     ) => {
       const { error } = await supabase.from('storico_partite').insert(rows)
       if (error) throw new Error(error.message)
@@ -188,9 +197,11 @@ export function useStatMatches() {
 
   return useMemo((): StatMatch[] => {
     const out: StatMatch[] = []
+    const scores = managers && punteggi ? buildGiornateScores(punteggi, managers) : {}
 
     for (const p of partite ?? []) {
       if (p.gol_casa == null || p.gol_trasferta == null) continue
+      const giornataScores = scores[String(p.giornata)]
       out.push({
         stagione: STAGIONE_CORRENTE,
         competizione: 'campionato',
@@ -199,6 +210,8 @@ export function useStatMatches() {
         trasferta: p.trasferta,
         golCasa: p.gol_casa,
         golTrasferta: p.gol_trasferta,
+        puntiCasa: giornataScores?.[p.casa] ?? null,
+        puntiTrasferta: giornataScores?.[p.trasferta] ?? null,
       })
     }
 
@@ -211,11 +224,12 @@ export function useStatMatches() {
         trasferta: s.trasferta,
         golCasa: s.gol_casa,
         golTrasferta: s.gol_trasferta,
+        puntiCasa: s.punti_casa != null ? Number(s.punti_casa) : null,
+        puntiTrasferta: s.punti_trasferta != null ? Number(s.punti_trasferta) : null,
       })
     }
 
     if (managers && punteggi) {
-      const scores = buildGiornateScores(punteggi, managers)
       const ovr: Record<string, TorneoOverrideInput> = {}
       for (const o of overrides ?? []) ovr[o.match_id] = { winner: o.winner as 'A' | 'B', golA: o.gol_a, golB: o.gol_b }
       const resolved = resolveTournament(initialMatches, scores, ovr)
@@ -231,6 +245,8 @@ export function useStatMatches() {
           trasferta: m.teamB,
           golCasa: m.golA,
           golTrasferta: m.golB,
+          puntiCasa: null,
+          puntiTrasferta: null,
         })
       }
     }

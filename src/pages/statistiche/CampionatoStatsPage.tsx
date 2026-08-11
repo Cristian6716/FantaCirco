@@ -1,13 +1,7 @@
-import { useMemo, useState } from 'react'
-import { useAlboOro, useStatMatches } from '../../lib/statisticheQueries'
-import { calculateAlboOroLeaderboard, calculateCampionatoRecords } from '../../lib/statisticheCalc'
+import { useMemo } from 'react'
+import { useAlboOro, useStatMatches, type AlboOroRow } from '../../lib/statisticheQueries'
+import { calculateCampionatoRecords } from '../../lib/statisticheCalc'
 import { EmptyState, PageLoader } from '../../components/ui'
-
-const COMP_LABEL: Record<string, string> = {
-  campionato: 'Campionato',
-  coppa: 'Coppa',
-  battle_royale: 'Battle Royale',
-}
 
 function StatCard({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
@@ -19,33 +13,28 @@ function StatCard({ label, children, hint }: { label: string; children: React.Re
   )
 }
 
-function AlboOroRow({ row }: { row: ReturnType<typeof calculateAlboOroLeaderboard>[number] }) {
-  const [open, setOpen] = useState(false)
+function latestChampion(entries: AlboOroRow[], competizione: string): AlboOroRow | null {
+  const filtered = entries.filter((e) => e.competizione === competizione)
+  if (filtered.length === 0) return null
+  return [...filtered].sort((a, b) => b.stagione.localeCompare(a.stagione, 'it'))[0]
+}
+
+function ChampionCard({ title, icon, entry, big }: { title: string; icon: string; entry: AlboOroRow | null; big?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{row.squadra}</span>
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-400">
-          {row.campionato > 0 && <span className="rounded-full bg-surface-2 px-2 py-0.5">🏆 {row.campionato}</span>}
-          {row.coppa > 0 && <span className="rounded-full bg-surface-2 px-2 py-0.5">🥤 {row.coppa}</span>}
-          {row.battle_royale > 0 && <span className="rounded-full bg-surface-2 px-2 py-0.5">⚔️ {row.battle_royale}</span>}
-          <span className="text-lg font-bold text-accent">{row.totale}</span>
-        </span>
-      </button>
-      {open && (
-        <div className="space-y-1 border-t border-border px-3 py-2">
-          {row.trofei.map((t) => (
-            <div key={t.id} className="flex items-center justify-between text-xs text-slate-300">
-              <span>
-                {t.stagione} · {COMP_LABEL[t.competizione]}
-              </span>
-              {t.note && <span className="text-slate-500">{t.note}</span>}
-            </div>
-          ))}
-        </div>
+    <div
+      className={`flex flex-col items-center justify-center rounded-xl border text-center ${
+        big ? 'border-accent-strong bg-surface-2 px-3 py-6' : 'border-border bg-surface px-2 py-4'
+      }`}
+    >
+      <span className={big ? 'text-3xl' : 'text-xl'}>{icon}</span>
+      <p className={`mt-1 font-semibold uppercase tracking-wide text-slate-400 ${big ? 'text-xs' : 'text-[10px]'}`}>{title}</p>
+      {entry ? (
+        <>
+          <p className={`mt-1 max-w-full truncate font-bold text-white ${big ? 'text-base' : 'text-sm'}`}>{entry.squadra}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">{entry.stagione}</p>
+        </>
+      ) : (
+        <p className="mt-1 text-xs text-slate-500">—</p>
       )}
     </div>
   )
@@ -56,7 +45,6 @@ export default function CampionatoStatsPage() {
   const { data: alboOro, isLoading } = useAlboOro()
 
   const records = useMemo(() => calculateCampionatoRecords(matches), [matches])
-  const leaderboard = useMemo(() => calculateAlboOroLeaderboard(alboOro ?? []), [alboOro])
 
   if (isLoading) return <PageLoader />
 
@@ -66,13 +54,13 @@ export default function CampionatoStatsPage() {
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-300">Albo d'oro</h2>
-        {leaderboard.length === 0 ? (
+        {!alboOro || alboOro.length === 0 ? (
           <EmptyState icon="🏆" title="Nessun trofeo registrato" hint="L'admin può aggiungerli da Amministrazione" />
         ) : (
-          <div className="space-y-1.5">
-            {leaderboard.map((row) => (
-              <AlboOroRow key={row.squadra} row={row} />
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            <ChampionCard title="Coppa" icon="🥤" entry={latestChampion(alboOro, 'coppa')} />
+            <ChampionCard title="Campionato" icon="🏆" entry={latestChampion(alboOro, 'campionato')} big />
+            <ChampionCard title="Battle Royale" icon="⚔️" entry={latestChampion(alboOro, 'battle_royale')} />
           </div>
         )}
       </section>
@@ -100,16 +88,16 @@ export default function CampionatoStatsPage() {
               )}
             </StatCard>
 
-            <StatCard label="Partita con meno gol totali">
-              {records.partitaMenoGol ? (
+            <StatCard label="Partita con meno punti totali" hint="Somma dei punti fantacalcio delle due squadre">
+              {records.partitaMenoPunti ? (
                 <>
                   <p className="text-sm font-medium text-white">
-                    {records.partitaMenoGol.match.casa} {records.partitaMenoGol.match.golCasa}-
-                    {records.partitaMenoGol.match.golTrasferta} {records.partitaMenoGol.match.trasferta}
+                    {records.partitaMenoPunti.match.casa} {records.partitaMenoPunti.puntiCasa}-
+                    {records.partitaMenoPunti.puntiTrasferta} {records.partitaMenoPunti.match.trasferta}
                   </p>
                   <p className="text-xs text-slate-400">
-                    {records.partitaMenoGol.golTotali} gol · {records.partitaMenoGol.match.stagione} · G
-                    {records.partitaMenoGol.match.giornata}
+                    {records.partitaMenoPunti.puntiTotali} punti · {records.partitaMenoPunti.match.stagione} · G
+                    {records.partitaMenoPunti.match.giornata}
                   </p>
                 </>
               ) : (
@@ -131,15 +119,13 @@ export default function CampionatoStatsPage() {
               )}
             </StatCard>
 
-            <StatCard
-              label="Campionato vinto con più anticipo"
-              hint="Giornate finali passate ininterrottamente da sola in testa"
-            >
-              {records.anticipoMassimo ? (
+            <StatCard label="Più giornate da sola in testa in una stagione">
+              {records.giornateInTestaMassimo ? (
                 <>
-                  <p className="text-sm font-medium text-white">{records.anticipoMassimo.squadra}</p>
+                  <p className="text-sm font-medium text-white">{records.giornateInTestaMassimo.squadra}</p>
                   <p className="text-xs text-slate-400">
-                    {records.anticipoMassimo.giornateAnticipo} giornate d'anticipo · {records.anticipoMassimo.stagione}
+                    {records.giornateInTestaMassimo.giornateInTesta} giornate su{' '}
+                    {records.giornateInTestaMassimo.giornateTotali} · {records.giornateInTestaMassimo.stagione}
                   </p>
                 </>
               ) : (

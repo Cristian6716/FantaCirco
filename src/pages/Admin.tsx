@@ -1710,7 +1710,9 @@ function StatisticheTab() {
   )
 }
 
-function parseStoricoPartite(text: string): { giornata: number; casa: string; trasferta: string; gol_casa: number; gol_trasferta: number }[] {
+function parseStoricoPartite(
+  text: string,
+): { giornata: number; casa: string; trasferta: string; gol_casa: number; gol_trasferta: number; punti_casa: number | null; punti_trasferta: number | null }[] {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -1721,13 +1723,19 @@ function parseStoricoPartite(text: string): { giornata: number; casa: string; tr
   const dataRows = firstCell === 'giornata' ? rows.slice(1) : rows
 
   return dataRows
-    .map((parts) => ({
-      giornata: parseInt(parts[0], 10),
-      casa: parts[1],
-      trasferta: parts[2],
-      gol_casa: parseInt(parts[3], 10),
-      gol_trasferta: parseInt(parts[4], 10),
-    }))
+    .map((parts) => {
+      const puntiCasa = parseFloat(parts[5])
+      const puntiTrasferta = parseFloat(parts[6])
+      return {
+        giornata: parseInt(parts[0], 10),
+        casa: parts[1],
+        trasferta: parts[2],
+        gol_casa: parseInt(parts[3], 10),
+        gol_trasferta: parseInt(parts[4], 10),
+        punti_casa: Number.isFinite(puntiCasa) ? puntiCasa : null,
+        punti_trasferta: Number.isFinite(puntiTrasferta) ? puntiTrasferta : null,
+      }
+    })
     .filter(
       (r) =>
         Number.isFinite(r.giornata) && r.casa && r.trasferta && Number.isFinite(r.gol_casa) && Number.isFinite(r.gol_trasferta),
@@ -1790,8 +1798,8 @@ function StoricoPartiteSection() {
       <h3 className="text-sm font-semibold text-slate-200">Storico partite (stagioni passate)</h3>
       <p className="mt-1 text-xs text-slate-400">
         Calendario di una stagione già conclusa: alimenta i record di "Statistiche campionato" e gli scontri
-        diretti. Una riga per partita: giornata, casa, trasferta, gol casa, gol trasferta (CSV o incolla da
-        Excel).
+        diretti. Una riga per partita: giornata, casa, trasferta, gol casa, gol trasferta, punti fanta casa
+        (opz.), punti fanta trasferta (opz.) — CSV o incolla da Excel.
       </p>
       <input
         value={stagione}
@@ -1802,7 +1810,7 @@ function StoricoPartiteSection() {
       <textarea
         value={testo}
         onChange={(e) => setTesto(e.target.value)}
-        placeholder={'1,One Pisa,QARABAGGIO,2,1\n1,Sesko e Sambia,Napolethanos,0,0'}
+        placeholder={'1,One Pisa,QARABAGGIO,2,1,73.5,68\n1,Sesko e Sambia,Napolethanos,0,0,65,70.5'}
         rows={5}
         className={`${inputCls} mt-2 font-mono text-xs`}
       />

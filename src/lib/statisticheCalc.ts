@@ -1,7 +1,7 @@
 // Logica pura della sezione Statistiche: unifica le fonti di partite
 // (campionato corrente + storico stagioni passate + bracket Coppa risolto),
 // calcola i record da "statistiche campionato" e gli scontri diretti (H2H).
-import { calculateCampionatoStandings, type CampionatoRow } from './tornei'
+import { calculateCampionatoStandings } from './tornei'
 
 export const STAGIONE_CORRENTE = 'Stagione corrente'
 
@@ -13,6 +13,8 @@ export interface StatMatch {
   trasferta: string
   golCasa: number
   golTrasferta: number
+  puntiCasa: number | null
+  puntiTrasferta: number | null
 }
 
 /** Righe pronte per calculateCampionatoStandings (stessa forma di PartitaResult). */
@@ -52,6 +54,13 @@ export interface MatchRecord {
   golTotali: number
 }
 
+export interface PuntiRecord {
+  match: StatMatch
+  puntiCasa: number
+  puntiTrasferta: number
+  puntiTotali: number
+}
+
 export interface MargineRecord {
   stagione: string
   squadra: string
@@ -60,11 +69,11 @@ export interface MargineRecord {
   margine: number
 }
 
-export interface AnticipoRecord {
+export interface GiornateInTestaRecord {
   stagione: string
   squadra: string
   giornateTotali: number
-  giornateAnticipo: number
+  giornateInTesta: number
 }
 
 export interface StrisciaRecord {
@@ -77,9 +86,9 @@ export interface StrisciaRecord {
 
 export interface CampionatoRecords {
   partitaPiuGol: MatchRecord | null
-  partitaMenoGol: MatchRecord | null
+  partitaMenoPunti: PuntiRecord | null
   margineMassimo: MargineRecord | null
-  anticipoMassimo: AnticipoRecord | null
+  giornateInTestaMassimo: GiornateInTestaRecord | null
   strisceImbattibilita: StrisciaRecord[]
   strischeVittorie: StrisciaRecord[]
   strischeSconfitte: StrisciaRecord[]
@@ -91,28 +100,33 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
   if (matches.length === 0) {
     return {
       partitaPiuGol: null,
-      partitaMenoGol: null,
+      partitaMenoPunti: null,
       margineMassimo: null,
-      anticipoMassimo: null,
+      giornateInTestaMassimo: null,
       strisceImbattibilita: [],
       strischeVittorie: [],
       strischeSconfitte: [],
     }
   }
 
-  // ---- Partita con più/meno gol totali ----
+  // ---- Partita con più gol totali (reali) / meno punti fantacalcio totali ----
   let partitaPiuGol: MatchRecord | null = null
-  let partitaMenoGol: MatchRecord | null = null
+  let partitaMenoPunti: PuntiRecord | null = null
   for (const m of matches) {
     const golTotali = m.golCasa + m.golTrasferta
     if (!partitaPiuGol || golTotali > partitaPiuGol.golTotali) partitaPiuGol = { match: m, golTotali }
-    if (!partitaMenoGol || golTotali < partitaMenoGol.golTotali) partitaMenoGol = { match: m, golTotali }
+    if (m.puntiCasa != null && m.puntiTrasferta != null) {
+      const puntiTotali = m.puntiCasa + m.puntiTrasferta
+      if (!partitaMenoPunti || puntiTotali < partitaMenoPunti.puntiTotali) {
+        partitaMenoPunti = { match: m, puntiCasa: m.puntiCasa, puntiTrasferta: m.puntiTrasferta, puntiTotali }
+      }
+    }
   }
 
   const bySeason = groupBy(matches, (m) => m.stagione)
 
   let margineMassimo: MargineRecord | null = null
-  let anticipoMassimo: AnticipoRecord | null = null
+  let giornateInTestaMassimo: GiornateInTestaRecord | null = null
   const strisce: StrisciaRecord[] = []
   const strischeV: StrisciaRecord[] = []
   const strischeS: StrisciaRecord[] = []
@@ -135,29 +149,28 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
       }
     }
 
-    // ---- Giornate d'anticipo del campione ----
+    // ---- Più giornate da sola in testa in una singola stagione ----
     const giornateOrdinate = Array.from(new Set(seasonMatches.map((m) => m.giornata))).sort((a, b) => a - b)
-    if (giornateOrdinate.length > 0 && finalStandings.length >= 2) {
-      const campione = finalStandings[0].team
+    if (giornateOrdinate.length > 0) {
       const standingsPerGiornata = giornateOrdinate.map((g) => {
         const upTo = seasonMatches.filter((m) => m.giornata <= g)
         return calculateCampionatoStandings(toPartitaResult(upTo), teams)
       })
-      const soleLeader = (standings: CampionatoRow[]) =>
-        standings.length >= 2 && standings[0].team === campione && standings[0].pts > standings[1].pts
-
-      let k0 = giornateOrdinate.length // indice (1-based count) da cui il primato è ininterrotto
-      for (let i = giornateOrdinate.length - 1; i >= 0; i--) {
-        if (soleLeader(standingsPerGiornata[i])) k0 = i + 1
-        else break
+      const giornateInTestaByTeam = new Map<string, number>()
+      for (const standings of standingsPerGiornata) {
+        if (standings.length >= 2 && standings[0].pts > standings[1].pts) {
+          const leader = standings[0].team
+          giornateInTestaByTeam.set(leader, (giornateInTestaByTeam.get(leader) ?? 0) + 1)
+        }
       }
-      const giornateAnticipo = giornateOrdinate.length - k0
-      if (giornateAnticipo > 0 && (!anticipoMassimo || giornateAnticipo > anticipoMassimo.giornateAnticipo)) {
-        anticipoMassimo = {
-          stagione,
-          squadra: campione,
-          giornateTotali: giornateOrdinate.length,
-          giornateAnticipo,
+      for (const [squadra, giornateInTesta] of giornateInTestaByTeam) {
+        if (!giornateInTestaMassimo || giornateInTesta > giornateInTestaMassimo.giornateInTesta) {
+          giornateInTestaMassimo = {
+            stagione,
+            squadra,
+            giornateTotali: giornateOrdinate.length,
+            giornateInTesta,
+          }
         }
       }
     }
@@ -224,46 +237,13 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
 
   return {
     partitaPiuGol,
-    partitaMenoGol,
+    partitaMenoPunti,
     margineMassimo,
-    anticipoMassimo,
+    giornateInTestaMassimo,
     strisceImbattibilita,
     strischeVittorie,
     strischeSconfitte,
   }
-}
-
-// ---------------- Albo d'oro ----------------
-
-export interface AlboOroEntry {
-  id: number
-  stagione: string
-  competizione: 'campionato' | 'coppa' | 'battle_royale'
-  squadra: string
-  note: string | null
-}
-
-export interface AlboOroLeaderboardRow {
-  squadra: string
-  totale: number
-  campionato: number
-  coppa: number
-  battle_royale: number
-  trofei: AlboOroEntry[]
-}
-
-export function calculateAlboOroLeaderboard(entries: AlboOroEntry[]): AlboOroLeaderboardRow[] {
-  const rows = new Map<string, AlboOroLeaderboardRow>()
-  for (const e of entries) {
-    if (!rows.has(e.squadra)) {
-      rows.set(e.squadra, { squadra: e.squadra, totale: 0, campionato: 0, coppa: 0, battle_royale: 0, trofei: [] })
-    }
-    const row = rows.get(e.squadra)!
-    row.totale += 1
-    row[e.competizione] += 1
-    row.trofei.push(e)
-  }
-  return Array.from(rows.values()).sort((a, b) => b.totale - a.totale || a.squadra.localeCompare(b.squadra, 'it'))
 }
 
 // ---------------- Scontri diretti (H2H) ----------------
