@@ -294,6 +294,30 @@ export interface TorneoOverrideInput {
   golB?: number | null
 }
 
+export interface ResolvedMatch {
+  golA: number
+  golB: number
+  winner: 'A' | 'B' | null
+  draw: boolean
+}
+
+/**
+ * Risolve una singola partita da due punteggi fanta: stesso sistema di
+ * gol/fasce (calculateMatchResult) più il tie-break su punteggio raw quando
+ * le fasce coincidono. draw=true solo su parità esatta del punteggio fanta,
+ * caso in cui serve uno spareggio manuale (override admin). Riusata da
+ * Coppa, Svizzero e Gironi del Torneo Megagalattico.
+ */
+export function resolveMatchWinner(scoreA: number, scoreB: number): ResolvedMatch {
+  const result = calculateMatchResult(scoreA, scoreB)
+  const { golA, golB } = result
+
+  if (golA > golB) return { golA, golB, winner: 'A', draw: false }
+  if (golB > golA) return { golA, golB, winner: 'B', draw: false }
+  if (scoreA !== scoreB) return { golA, golB, winner: scoreA > scoreB ? 'A' : 'B', draw: false }
+  return { golA, golB, winner: null, draw: true }
+}
+
 /**
  * Risolve il bracket in base ai punteggi delle giornate.
  * Usa lo stesso sistema di gol/fasce della Battle Royale; in caso di parità
@@ -319,19 +343,11 @@ export function resolveTournament(
     if (scoreB != null) match.scoreB = scoreB
 
     if (scoreA != null && scoreB != null) {
-      const result = calculateMatchResult(scoreA, scoreB)
-      match.golA = result.golA
-      match.golB = result.golB
-
-      if (result.golA > result.golB) {
-        match.winner = 'A'
-      } else if (result.golB > result.golA) {
-        match.winner = 'B'
-      } else if (scoreA !== scoreB) {
-        match.winner = scoreA > scoreB ? 'A' : 'B'
-      } else {
-        match.draw = true
-      }
+      const resolved = resolveMatchWinner(scoreA, scoreB)
+      match.golA = resolved.golA
+      match.golB = resolved.golB
+      match.winner = resolved.winner
+      match.draw = resolved.draw
     }
 
     // Nessun punteggio per una delle due (es. squadra non più in lega): serve

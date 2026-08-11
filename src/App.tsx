@@ -18,6 +18,7 @@ import PodioPage from './pages/pronostici/PodioPage'
 import CampionatoPage from './pages/competizioni/CampionatoPage'
 import CoppaPage from './pages/competizioni/CoppaPage'
 import BattleRoyalePage from './pages/competizioni/BattleRoyalePage'
+import MegagalatticoPage from './pages/competizioni/MegagalatticoPage'
 import CampionatoStatsPage from './pages/statistiche/CampionatoStatsPage'
 import MercatoStatsPage from './pages/statistiche/MercatoStatsPage'
 import ScontriDirettiPage from './pages/statistiche/ScontriDirettiPage'
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="/competizioni/campionato" element={<CampionatoPage />} />
         <Route path="/competizioni/coppa" element={<CoppaPage />} />
         <Route path="/competizioni/battle-royale" element={<BattleRoyalePage />} />
+        <Route path="/competizioni/megagalattico" element={<MegagalatticoPage />} />
         <Route path="/statistiche" element={<Navigate to="/statistiche/campionato" replace />} />
         <Route path="/statistiche/campionato" element={<CampionatoStatsPage />} />
         <Route path="/statistiche/mercato" element={<MercatoStatsPage />} />

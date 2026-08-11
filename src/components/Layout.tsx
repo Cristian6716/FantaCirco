@@ -7,6 +7,7 @@ import { usePodioRealtime } from '../lib/podio'
 import { useRankingRealtime } from '../lib/rankingQueries'
 import { useStatisticheRealtime } from '../lib/statisticheQueries'
 import { useScambiRealtime } from '../lib/scambi'
+import { useMegagalatticoRealtime } from '../lib/megagalattico'
 
 function CreditStat({ label, value, color }: { label: string; value: number | null | undefined; color: string }) {
   return (
@@ -169,8 +170,8 @@ const SECTIONS: Section[] = [
     icon: '🏆',
     items: [
       { to: '/competizioni/campionato', label: 'Campionato' },
-      { to: '/competizioni/coppa', label: 'Coppa' },
       { to: '/competizioni/battle-royale', label: 'Battle Royale' },
+      { to: '/competizioni/megagalattico', label: 'Torneo Megagalattico' },
     ],
   },
   {
@@ -277,6 +278,7 @@ function Sidebar() {
 export function Layout({ children }: { children: ReactNode }) {
   useRealtime()
   useLeagueRealtime()
+  useMegagalatticoRealtime()
   usePodioRealtime()
   useRankingRealtime()
   useStatisticheRealtime()

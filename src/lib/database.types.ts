@@ -528,6 +528,191 @@ export type Database = {
         }
         Relationships: []
       }
+      mega_accoppiamenti: {
+        Row: {
+          created_at: string
+          id: number
+          manager_a: string
+          manager_b: string
+          turno: number
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          manager_a: string
+          manager_b: string
+          turno: number
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          manager_a?: string
+          manager_b?: string
+          turno?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mega_accoppiamenti_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_accoppiamenti_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_accoppiamenti_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_accoppiamenti_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mega_coppa_seeding: {
+        Row: {
+          bracket: string
+          created_at: string
+          id: number
+          manager_a: string
+          manager_b: string
+        }
+        Insert: {
+          bracket: string
+          created_at?: string
+          id?: never
+          manager_a: string
+          manager_b: string
+        }
+        Update: {
+          bracket?: string
+          created_at?: string
+          id?: never
+          manager_a?: string
+          manager_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mega_coppa_seeding_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_coppa_seeding_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_coppa_seeding_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_coppa_seeding_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mega_gironi_partite: {
+        Row: {
+          girone: string
+          id: number
+          manager_a: string
+          manager_b: string
+          round: number
+        }
+        Insert: {
+          girone: string
+          id?: never
+          manager_a: string
+          manager_b: string
+          round: number
+        }
+        Update: {
+          girone?: string
+          id?: never
+          manager_a?: string
+          manager_b?: string
+          round?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mega_gironi_partite_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_gironi_partite_manager_a_fkey"
+            columns: ["manager_a"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_gironi_partite_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mega_gironi_partite_manager_b_fkey"
+            columns: ["manager_b"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mega_turni: {
+        Row: {
+          giornata_reale: number | null
+          step_numero: number
+          step_type: string
+        }
+        Insert: {
+          giornata_reale?: number | null
+          step_numero: number
+          step_type: string
+        }
+        Update: {
+          giornata_reale?: number | null
+          step_numero?: number
+          step_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mega_turni_giornata_reale_fkey"
+            columns: ["giornata_reale"]
+            isOneToOne: false
+            referencedRelation: "giornate"
+            referencedColumns: ["numero"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           manager_id: string

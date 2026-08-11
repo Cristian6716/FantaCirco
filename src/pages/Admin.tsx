@@ -35,6 +35,28 @@ import {
 import { calculateMatchResult, resolveTournament, type TorneoOverrideInput } from '../lib/tornei'
 import { initialMatches } from '../lib/torneoData'
 import {
+  buildTeamNameMap,
+  drawCoppaSeeding,
+  generateRoundRobin,
+  generateSwissPairing,
+  megaSwissOverrideId,
+  resolveGironeStandings,
+  resolveSwissState,
+  splitSwissToGironi,
+  splitToFasce,
+  useAdminGeneraGironi,
+  useAdminSetMegaTurno,
+  useAdminSorteggiaCoppa,
+  useAdminSorteggiaTurno,
+  useMegaAccoppiamenti,
+  useMegaCoppaSeeding,
+  useMegaGironiPartite,
+  useMegaTurni,
+  type RoundRobinMatch,
+  GIRONE_ROUNDS,
+  SWISS_TURNI,
+} from '../lib/megagalattico'
+import {
   computePodioClassifica,
   useAdminClosePodioRound,
   useAdminPodioVotes,
@@ -65,7 +87,7 @@ import {
 const inputCls =
   'w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-white outline-none focus:border-accent'
 
-type Tab = 'managers' | 'players' | 'auctions' | 'giornate' | 'podio' | 'scambi' | 'statistiche'
+type Tab = 'managers' | 'players' | 'auctions' | 'giornate' | 'podio' | 'scambi' | 'statistiche' | 'megagalattico'
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('managers')
@@ -94,6 +116,9 @@ export default function AdminPage() {
         <TabBtn active={tab === 'statistiche'} onClick={() => setTab('statistiche')}>
           Statistiche
         </TabBtn>
+        <TabBtn active={tab === 'megagalattico'} onClick={() => setTab('megagalattico')}>
+          Megagalattico
+        </TabBtn>
       </div>
       {tab === 'managers' && <ManagersTab />}
       {tab === 'players' && <PlayersTab />}
@@ -102,6 +127,7 @@ export default function AdminPage() {
       {tab === 'podio' && <PodioTab />}
       {tab === 'scambi' && <ScambiTab />}
       {tab === 'statistiche' && <StatisticheTab />}
+      {tab === 'megagalattico' && <MegagalatticoTab />}
     </div>
   )
 }
@@ -2061,6 +2087,446 @@ function MercatoSection() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ---------------- Torneo Megagalattico: svizzero + gironi + sorteggio Coppa ---------------- */
+
+function MegagalatticoTab() {
+  const { data: managers } = useManagers()
+  const { data: punteggi } = usePunteggiGiornata()
+  const { data: overrides } = useOverrides()
+  const { data: megaTurni } = useMegaTurni()
+  const { data: accoppiamenti } = useMegaAccoppiamenti()
+  const { data: gironiPartite } = useMegaGironiPartite()
+  const { data: coppaSeeding } = useMegaCoppaSeeding()
+  const toast = useToast()
+
+  const setOverride = useAdminSetOverride()
+  const setMegaTurno = useAdminSetMegaTurno()
+  const sorteggiaTurno = useAdminSorteggiaTurno()
+  const generaGironi = useAdminGeneraGironi()
+  const sorteggiaCoppa = useAdminSorteggiaCoppa()
+
+  const squadre = useMemo(() => (managers ?? []).filter((m) => !!m.team_name), [managers])
+  const teamNameById = useMemo(() => buildTeamNameMap(squadre), [squadre])
+  const allIds = useMemo(() => squadre.map((m) => m.id), [squadre])
+
+  const scoresMap = useMemo(() => {
+    if (!managers || !punteggi) return {}
+    return buildGiornateScores(punteggi, managers)
+  }, [managers, punteggi])
+
+  const overrideMap = useMemo(() => {
+    const ovr: Record<string, TorneoOverrideInput> = {}
+    for (const o of overrides ?? []) ovr[o.match_id] = { winner: o.winner as 'A' | 'B', golA: o.gol_a, golB: o.gol_b }
+    return ovr
+  }, [overrides])
+
+  const turniSvizzero = useMemo(() => {
+    const m = new Map<number, number | null>()
+    for (const t of megaTurni ?? []) if (t.step_type === 'svizzero') m.set(t.step_numero, t.giornata_reale)
+    return m
+  }, [megaTurni])
+
+  const turniGironi = useMemo(() => {
+    const m = new Map<number, number | null>()
+    for (const t of megaTurni ?? []) if (t.step_type === 'gironi') m.set(t.step_numero, t.giornata_reale)
+    return m
+  }, [megaTurni])
+
+  const swiss = useMemo(() => {
+    if (allIds.length === 0) return null
+    return resolveSwissState(accoppiamenti ?? [], turniSvizzero, scoresMap, teamNameById, overrideMap, allIds)
+  }, [accoppiamenti, turniSvizzero, scoresMap, teamNameById, overrideMap, allIds])
+
+  const nextTurno = useMemo(() => {
+    for (let n = 1; n <= SWISS_TURNI; n++) {
+      if (!(accoppiamenti ?? []).some((a) => a.turno === n)) return n
+    }
+    return null
+  }, [accoppiamenti])
+
+  const prevTurnoReady = useMemo(() => {
+    if (nextTurno == null) return false
+    if (nextTurno === 1) return true
+    const prevMatches = swiss?.matches.filter((m) => m.turno === nextTurno - 1) ?? []
+    return prevMatches.length > 0 && prevMatches.every((m) => m.winner != null)
+  }, [nextTurno, swiss])
+
+  const activeForNextTurno = useMemo(() => {
+    if (!swiss) return []
+    return [...swiss.states.values()].filter((s) => s.status === 'active')
+  }, [swiss])
+
+  const canDraw =
+    swiss != null &&
+    nextTurno != null &&
+    turniSvizzero.get(nextTurno) != null &&
+    prevTurnoReady &&
+    activeForNextTurno.length >= 2
+
+  async function handleSorteggiaTurno() {
+    if (!swiss || nextTurno == null) return
+    const pairs = generateSwissPairing(activeForNextTurno, (id) => swiss.states.get(id)?.opponents ?? new Set())
+    try {
+      await sorteggiaTurno.mutateAsync({ turno: nextTurno, pairs })
+      toast.success(`Turno ${nextTurno} sorteggiato`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  const swissComplete =
+    swiss != null && allIds.length > 0 && [...swiss.states.values()].every((s) => s.status !== 'active')
+
+  const partiteA = useMemo(
+    () =>
+      (gironiPartite ?? [])
+        .filter((p) => p.girone === 'A')
+        .map((p): RoundRobinMatch => ({ round: p.round, managerA: p.manager_a, managerB: p.manager_b })),
+    [gironiPartite],
+  )
+  const partiteB = useMemo(
+    () =>
+      (gironiPartite ?? [])
+        .filter((p) => p.girone === 'B')
+        .map((p): RoundRobinMatch => ({ round: p.round, managerA: p.manager_a, managerB: p.manager_b })),
+    [gironiPartite],
+  )
+
+  const swissRecordsMap = useMemo(() => {
+    const m = new Map<string, { wins: number; losses: number }>()
+    for (const s of swiss?.states.values() ?? []) m.set(s.managerId, { wins: s.wins, losses: s.losses })
+    return m
+  }, [swiss])
+
+  const idsA = useMemo(() => [...new Set(partiteA.flatMap((p) => [p.managerA, p.managerB]))], [partiteA])
+  const idsB = useMemo(() => [...new Set(partiteB.flatMap((p) => [p.managerA, p.managerB]))], [partiteB])
+
+  const classificaA = useMemo(
+    () => resolveGironeStandings(idsA, swissRecordsMap, partiteA, turniGironi, scoresMap, teamNameById),
+    [idsA, swissRecordsMap, partiteA, turniGironi, scoresMap, teamNameById],
+  )
+  const classificaB = useMemo(
+    () => resolveGironeStandings(idsB, swissRecordsMap, partiteB, turniGironi, scoresMap, teamNameById),
+    [idsB, swissRecordsMap, partiteB, turniGironi, scoresMap, teamNameById],
+  )
+
+  async function handleGeneraGironi() {
+    if (!swiss) return
+    const finalRecords = [...swiss.states.values()].map((s) => ({ managerId: s.managerId, wins: s.wins, losses: s.losses }))
+    const { gironeA, gironeB } = splitSwissToGironi(finalRecords)
+    if (gironeA.length !== 8 || gironeB.length !== 8) {
+      toast.error('Servono esattamente 8 squadre per girone: controlla lo svizzero.')
+      return
+    }
+    const newPartiteA = generateRoundRobin(gironeA.map((r) => r.managerId))
+    const newPartiteB = generateRoundRobin(gironeB.map((r) => r.managerId))
+    try {
+      await generaGironi.mutateAsync({ partiteA: newPartiteA, partiteB: newPartiteB })
+      toast.success('Calendario gironi generato')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  function gironeCompleto(partite: RoundRobinMatch[]) {
+    if (partite.length === 0) return false
+    return partite.every((p) => {
+      const g = turniGironi.get(p.round)
+      if (g == null) return false
+      const dayScores = scoresMap[String(g)] ?? {}
+      const teamA = teamNameById.get(p.managerA)
+      const teamB = teamNameById.get(p.managerB)
+      return teamA != null && teamB != null && dayScores[teamA] != null && dayScores[teamB] != null
+    })
+  }
+  const gironiCompletati = gironeCompleto(partiteA) && gironeCompleto(partiteB)
+
+  async function handleSorteggiaCoppa() {
+    const fasce = splitToFasce(classificaA, classificaB)
+    if (
+      fasce.elite.length !== 4 ||
+      fasce.outsider.length !== 4 ||
+      fasce.rivelazioni.length !== 4 ||
+      fasce.fondo.length !== 4
+    ) {
+      toast.error('Servono 4 fasce complete da 4 squadre.')
+      return
+    }
+    const matches = drawCoppaSeeding(fasce)
+    try {
+      await sorteggiaCoppa.mutateAsync(matches)
+      toast.success('Sorteggio Coppa generato')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  if (!managers) return <PageLoader />
+
+  return (
+    <div className="space-y-3">
+      {/* Turni svizzero */}
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-slate-200">Svizzero — turni</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Assegna la giornata reale a ogni turno, poi sorteggia gli accoppiamenti quando il turno precedente è
+          concluso. I punteggi si inseriscono come sempre dal tab Giornate.
+        </p>
+        <div className="mt-2 space-y-2">
+          {Array.from({ length: SWISS_TURNI }, (_, i) => i + 1).map((n) => {
+            const pairs = (accoppiamenti ?? []).filter((a) => a.turno === n)
+            const matches = swiss?.matches.filter((m) => m.turno === n) ?? []
+            return (
+              <div key={n} className="rounded-lg border border-border bg-surface-2 p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-200">Turno {n}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">Giornata</span>
+                    <input
+                      type="number"
+                      value={turniSvizzero.get(n) ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value.trim()
+                        setMegaTurno.mutate({
+                          step_type: 'svizzero',
+                          step_numero: n,
+                          giornata_reale: val === '' ? null : Number(val),
+                        })
+                      }}
+                      className="h-8 w-16 rounded-lg border border-border bg-surface text-center text-sm text-white outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+
+                {pairs.length === 0 && n === nextTurno && (
+                  <button
+                    onClick={handleSorteggiaTurno}
+                    disabled={!canDraw || sorteggiaTurno.isPending}
+                    className="mt-2 w-full rounded-lg bg-accent-strong py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    Sorteggia turno {n}
+                  </button>
+                )}
+                {pairs.length === 0 && n !== nextTurno && (
+                  <p className="mt-1.5 text-xs text-slate-500">In attesa dei turni precedenti.</p>
+                )}
+
+                {matches.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {matches.map((m) => {
+                      const nameA = teamNameById.get(m.managerA) ?? m.managerA
+                      const nameB = teamNameById.get(m.managerB) ?? m.managerB
+                      const matchId = megaSwissOverrideId(m.turno, m.managerA, m.managerB)
+                      const currentWinner = (overrides ?? []).find((o) => o.match_id === matchId)?.winner
+                      return (
+                        <div key={matchId} className="rounded-lg border border-border bg-surface p-1.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="truncate text-slate-200">{nameA}</span>
+                            <span className="mx-1 font-semibold text-white">
+                              {m.golA ?? '–'} - {m.golB ?? '–'}
+                            </span>
+                            <span className="truncate text-right text-slate-200">{nameB}</span>
+                          </div>
+                          {m.winner == null && m.scoreA == null && (
+                            <p className="mt-1 text-[10px] text-slate-500">In attesa dei punteggi.</p>
+                          )}
+                          {m.draw && (
+                            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                              {(['A', 'B'] as const).map((side) => (
+                                <button
+                                  key={side}
+                                  onClick={() =>
+                                    setOverride.mutate({ match_id: matchId, winner: currentWinner === side ? null : side })
+                                  }
+                                  className={[
+                                    'rounded-lg border py-1 text-[11px] font-semibold',
+                                    currentWinner === side
+                                      ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200'
+                                      : 'border-border bg-surface-2 text-slate-300',
+                                  ].join(' ')}
+                                >
+                                  {side === 'A' ? nameA : nameB}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Stato squadre */}
+      {swiss && (
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <h3 className="text-sm font-semibold text-slate-200">Stato squadre</h3>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {[...swiss.states.values()]
+              .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+              .map((s) => (
+                <div
+                  key={s.managerId}
+                  className={[
+                    'rounded-lg border p-1.5 text-xs',
+                    s.status === 'qualified'
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                      : s.status === 'eliminated'
+                        ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                        : 'border-border bg-surface-2 text-slate-200',
+                  ].join(' ')}
+                >
+                  <p className="truncate font-medium">{teamNameById.get(s.managerId) ?? s.managerId}</p>
+                  <p className="text-[10px] opacity-80">
+                    {s.wins}-{s.losses}
+                    {s.status === 'qualified' ? ' · qualificata' : s.status === 'eliminated' ? ' · eliminata' : ''}
+                  </p>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gironi */}
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-slate-200">Gironi A/B</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Calendario round robin generato in automatico (nessun sorteggio) una volta concluso lo svizzero.
+        </p>
+        {gironiPartite && gironiPartite.length === 0 && (
+          <button
+            onClick={handleGeneraGironi}
+            disabled={!swissComplete || generaGironi.isPending}
+            className="mt-2 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Genera calendario gironi
+          </button>
+        )}
+        {!swissComplete && (!gironiPartite || gironiPartite.length === 0) && (
+          <p className="mt-1.5 text-xs text-slate-500">
+            Disponibile quando tutte le 16 squadre hanno terminato lo svizzero.
+          </p>
+        )}
+
+        {gironiPartite && gironiPartite.length > 0 && (
+          <>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {Array.from({ length: GIRONE_ROUNDS }, (_, i) => i + 1).map((r) => (
+                <label key={r} className="flex items-center gap-1 text-xs text-slate-400">
+                  R{r}
+                  <input
+                    type="number"
+                    value={turniGironi.get(r) ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value.trim()
+                      setMegaTurno.mutate({
+                        step_type: 'gironi',
+                        step_numero: r,
+                        giornata_reale: val === '' ? null : Number(val),
+                      })
+                    }}
+                    className="h-7 w-14 rounded-lg border border-border bg-surface-2 text-center text-white outline-none focus:border-accent"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <GironeTable title="Girone A" classifica={classificaA} teamNameById={teamNameById} />
+              <GironeTable title="Girone B" classifica={classificaB} teamNameById={teamNameById} />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sorteggio Coppa */}
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-slate-200">Sorteggio tabellone Coppa</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Elite (1°-4° Girone A) → upper, outsider+rivelazioni (5°-8° A + 1°-4° B) → mid, fondo (5°-8° Girone B) →
+          lower. Il risultato è solo di riferimento: la Coppa (torneoData.ts) non viene ricablata automaticamente.
+        </p>
+        <button
+          onClick={handleSorteggiaCoppa}
+          disabled={!gironiCompletati || sorteggiaCoppa.isPending}
+          className="mt-2 w-full rounded-lg bg-accent-strong py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {coppaSeeding && coppaSeeding.length > 0 ? 'Rigenera sorteggio Coppa' : 'Sorteggia tabellone Coppa'}
+        </button>
+        {!gironiCompletati && (
+          <p className="mt-1.5 text-xs text-slate-500">Disponibile quando entrambi i gironi hanno tutte le giornate.</p>
+        )}
+        {coppaSeeding && coppaSeeding.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {(['upper', 'mid', 'lower'] as const).map((bracket) => (
+              <div key={bracket} className="rounded-lg border border-border bg-surface-2 p-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{bracket}</p>
+                <div className="mt-1 space-y-1">
+                  {coppaSeeding
+                    .filter((m) => m.bracket === bracket)
+                    .map((m) => (
+                      <p key={m.id} className="text-sm text-white">
+                        {teamNameById.get(m.manager_a) ?? m.manager_a} vs {teamNameById.get(m.manager_b) ?? m.manager_b}
+                      </p>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GironeTable({
+  title,
+  classifica,
+  teamNameById,
+}: {
+  title: string
+  classifica: ReturnType<typeof resolveGironeStandings>
+  teamNameById: Map<string, string>
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-[20rem] text-xs">
+        <thead>
+          <tr className="bg-surface-2 text-slate-400">
+            <th className="px-1.5 py-1.5 text-left font-medium">{title}</th>
+            <th className="px-1 py-1.5 text-center font-medium">Pt</th>
+            <th className="px-1 py-1.5 text-center font-medium">V</th>
+            <th className="px-1 py-1.5 text-center font-medium">N</th>
+            <th className="px-1 py-1.5 text-center font-medium">P</th>
+            <th className="px-1 py-1.5 text-center font-medium">DR</th>
+            <th className="px-1 py-1.5 text-center font-medium">Sv.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {classifica.map((r) => (
+            <tr key={r.managerId} className="border-t border-border">
+              <td className="px-1.5 py-1.5 text-white">
+                {r.pos}. {teamNameById.get(r.managerId) ?? r.managerId}
+              </td>
+              <td className="px-1 py-1.5 text-center font-bold text-accent">{r.pts}</td>
+              <td className="px-1 py-1.5 text-center text-slate-300">{r.w}</td>
+              <td className="px-1 py-1.5 text-center text-slate-300">{r.d}</td>
+              <td className="px-1 py-1.5 text-center text-slate-300">{r.l}</td>
+              <td className="px-1 py-1.5 text-center text-slate-300">{r.dr > 0 ? `+${r.dr}` : r.dr}</td>
+              <td className="px-1 py-1.5 text-center text-slate-500">
+                {r.swissWins}-{r.swissLosses}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
