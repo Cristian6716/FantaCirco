@@ -81,6 +81,8 @@ export interface CampionatoRecords {
   margineMassimo: MargineRecord | null
   anticipoMassimo: AnticipoRecord | null
   strisceImbattibilita: StrisciaRecord[]
+  strischeVittorie: StrisciaRecord[]
+  strischeSconfitte: StrisciaRecord[]
 }
 
 /** Record calcolati solo sulle partite di campionato (storico + corrente). */
@@ -93,6 +95,8 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
       margineMassimo: null,
       anticipoMassimo: null,
       strisceImbattibilita: [],
+      strischeVittorie: [],
+      strischeSconfitte: [],
     }
   }
 
@@ -110,6 +114,8 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
   let margineMassimo: MargineRecord | null = null
   let anticipoMassimo: AnticipoRecord | null = null
   const strisce: StrisciaRecord[] = []
+  const strischeV: StrisciaRecord[] = []
+  const strischeS: StrisciaRecord[] = []
 
   for (const [stagione, seasonMatches] of bySeason) {
     const teams = distinctTeams(seasonMatches)
@@ -156,52 +162,75 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
       }
     }
 
-    // ---- Striscia di imbattibilità più lunga ----
-    for (const team of teams) {
-      const teamMatches = seasonMatches
-        .filter((m) => m.casa === team || m.trasferta === team)
-        .sort((a, b) => a.giornata - b.giornata)
+    // ---- Striscia di imbattibilità / vittorie / sconfitte più lunga ----
+    const trackStreak = (
+      bucket: StrisciaRecord[],
+      isStreak: (lost: boolean, esito: 'V' | 'N' | 'P') => boolean,
+    ) => {
+      for (const team of teams) {
+        const teamMatches = seasonMatches
+          .filter((m) => m.casa === team || m.trasferta === team)
+          .sort((a, b) => a.giornata - b.giornata)
 
-      let current = 0
-      let currentStart = 0
-      for (const m of teamMatches) {
-        const isCasa = m.casa === team
-        const gf = isCasa ? m.golCasa : m.golTrasferta
-        const gs = isCasa ? m.golTrasferta : m.golCasa
-        const lost = gf < gs
-        if (lost) {
-          current = 0
-        } else {
-          if (current === 0) currentStart = m.giornata
-          current += 1
-          const best = strisce.find((s) => s.stagione === stagione && s.squadra === team)
-          if (!best || current > best.lunghezza) {
-            const record: StrisciaRecord = {
-              stagione,
-              squadra: team,
-              lunghezza: current,
-              giornataInizio: currentStart,
-              giornataFine: m.giornata,
+        let current = 0
+        let currentStart = 0
+        for (const m of teamMatches) {
+          const isCasa = m.casa === team
+          const gf = isCasa ? m.golCasa : m.golTrasferta
+          const gs = isCasa ? m.golTrasferta : m.golCasa
+          const esito: 'V' | 'N' | 'P' = gf > gs ? 'V' : gf < gs ? 'P' : 'N'
+          if (isStreak(gf < gs, esito)) {
+            if (current === 0) currentStart = m.giornata
+            current += 1
+            const best = bucket.find((s) => s.stagione === stagione && s.squadra === team)
+            if (!best || current > best.lunghezza) {
+              const record: StrisciaRecord = {
+                stagione,
+                squadra: team,
+                lunghezza: current,
+                giornataInizio: currentStart,
+                giornataFine: m.giornata,
+              }
+              if (best) {
+                best.lunghezza = record.lunghezza
+                best.giornataInizio = record.giornataInizio
+                best.giornataFine = record.giornataFine
+              } else {
+                bucket.push(record)
+              }
             }
-            if (best) {
-              best.lunghezza = record.lunghezza
-              best.giornataInizio = record.giornataInizio
-              best.giornataFine = record.giornataFine
-            } else {
-              strisce.push(record)
-            }
+          } else {
+            current = 0
           }
         }
       }
     }
+
+    trackStreak(strisce, (lost) => !lost)
+    trackStreak(strischeV, (_lost, esito) => esito === 'V')
+    trackStreak(strischeS, (_lost, esito) => esito === 'P')
   }
 
-  const maxLunghezza = strisce.reduce((max, s) => Math.max(max, s.lunghezza), 0)
-  const strisceImbattibilita = strisce
-    .filter((s) => s.lunghezza === maxLunghezza && maxLunghezza > 0)
-    .sort((a, b) => a.squadra.localeCompare(b.squadra, 'it'))
+  const topStreaks = (bucket: StrisciaRecord[]): StrisciaRecord[] => {
+    const max = bucket.reduce((m, s) => Math.max(m, s.lunghezza), 0)
+    return bucket
+      .filter((s) => s.lunghezza === max && max > 0)
+      .sort((a, b) => a.squadra.localeCompare(b.squadra, 'it'))
+  }
 
-  return { partitaPiuGol, partitaMenoGol, margineMassimo, anticipoMassimo, strisceImbattibilita }
+  const strisceImbattibilita = topStreaks(strisce)
+  const strischeVittorie = topStreaks(strischeV)
+  const strischeSconfitte = topStreaks(strischeS)
+
+  return {
+    partitaPiuGol,
+    partitaMenoGol,
+    margineMassimo,
+    anticipoMassimo,
+    strisceImbattibilita,
+    strischeVittorie,
+    strischeSconfitte,
+  }
 }
 
 // ---------------- Albo d'oro ----------------

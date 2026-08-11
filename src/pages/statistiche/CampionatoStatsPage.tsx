@@ -163,6 +163,40 @@ export default function CampionatoStatsPage() {
                 <p className="text-sm text-slate-500">—</p>
               )}
             </StatCard>
+
+            <StatCard label="Striscia di vittorie più lunga">
+              {records.strischeVittorie.length > 0 ? (
+                <div className="space-y-1">
+                  {records.strischeVittorie.map((s) => (
+                    <div key={`${s.stagione}-${s.squadra}`}>
+                      <p className="text-sm font-medium text-white">{s.squadra}</p>
+                      <p className="text-xs text-slate-400">
+                        {s.lunghezza} vittorie (G{s.giornataInizio}-G{s.giornataFine}) · {s.stagione}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">—</p>
+              )}
+            </StatCard>
+
+            <StatCard label="Striscia di sconfitte più lunga">
+              {records.strischeSconfitte.length > 0 ? (
+                <div className="space-y-1">
+                  {records.strischeSconfitte.map((s) => (
+                    <div key={`${s.stagione}-${s.squadra}`}>
+                      <p className="text-sm font-medium text-white">{s.squadra}</p>
+                      <p className="text-xs text-slate-400">
+                        {s.lunghezza} sconfitte (G{s.giornataInizio}-G{s.giornataFine}) · {s.stagione}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">—</p>
+              )}
+            </StatCard>
           </div>
         )}
       </section>
