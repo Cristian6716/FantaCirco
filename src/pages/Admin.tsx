@@ -94,7 +94,7 @@ export default function AdminPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-white">Amministrazione</h1>
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 text-sm">
+      <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1 text-sm sm:grid-cols-4 lg:grid-cols-8">
         <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')}>
           Squadre
         </TabBtn>
@@ -145,7 +145,7 @@ function TabBtn({
     <button
       onClick={onClick}
       className={[
-        'flex-1 rounded-lg py-2 font-medium transition-colors',
+        'truncate rounded-lg px-1 py-2 text-xs font-medium transition-colors lg:text-sm',
         active ? 'bg-accent-strong text-white' : 'text-slate-400',
       ].join(' ')}
     >
@@ -1361,6 +1361,7 @@ function PodioTab() {
                       <th className="px-2 py-1.5 text-center font-medium">1°</th>
                       <th className="px-2 py-1.5 text-center font-medium">2°</th>
                       <th className="px-2 py-1.5 text-center font-medium">3°</th>
+                      <th className="px-2 py-1.5 text-center font-medium">Ult.</th>
                       <th className="px-2 py-1.5 text-right font-medium">Punti</th>
                     </tr>
                   </thead>
@@ -1371,6 +1372,7 @@ function PodioTab() {
                         <td className="px-2 py-1.5 text-center text-slate-300">{r.c1}</td>
                         <td className="px-2 py-1.5 text-center text-slate-300">{r.c2}</td>
                         <td className="px-2 py-1.5 text-center text-slate-300">{r.c3}</td>
+                        <td className="px-2 py-1.5 text-center text-slate-400">{r.cu}</td>
                         <td className="px-2 py-1.5 text-right font-bold text-accent">{r.punti}</td>
                       </tr>
                     ))}
@@ -1389,7 +1391,8 @@ function PodioTab() {
                 {votes.map((v) => (
                   <p key={v.manager_id} className="text-sm text-slate-200">
                     <span className="font-semibold text-white">{nameOf(v.manager_id)}</span>: 1°{' '}
-                    {nameOf(v.pos1)}, 2° {nameOf(v.pos2)}, 3° {nameOf(v.pos3)}
+                    {nameOf(v.pos1)}, 2° {nameOf(v.pos2)}, 3° {nameOf(v.pos3)}, ultimo{' '}
+                    {v.ultimo ? nameOf(v.ultimo) : '—'}
                   </p>
                 ))}
               </div>

@@ -922,6 +922,7 @@ export type Database = {
           pos2: string
           pos3: string
           round_id: number
+          ultimo: string | null
           updated_at: string
         }
         Insert: {
@@ -931,6 +932,7 @@ export type Database = {
           pos2: string
           pos3: string
           round_id: number
+          ultimo?: string | null
           updated_at?: string
         }
         Update: {
@@ -940,6 +942,7 @@ export type Database = {
           pos2?: string
           pos3?: string
           round_id?: number
+          ultimo?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1004,6 +1007,20 @@ export type Database = {
             columns: ["round_id"]
             isOneToOne: false
             referencedRelation: "podio_rounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_ultimo_fkey"
+            columns: ["ultimo"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "podio_votes_ultimo_fkey"
+            columns: ["ultimo"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
             referencedColumns: ["id"]
           },
         ]
@@ -1886,6 +1903,7 @@ export type Database = {
           c1: number
           c2: number
           c3: number
+          cu: number
           manager_id: string
           nome: string
           punti: number

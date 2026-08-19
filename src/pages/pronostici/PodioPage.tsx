@@ -63,6 +63,7 @@ export default function PodioPage() {
                 <p>🥇 1° {nameOf(myVote.pos1)}</p>
                 <p>🥈 2° {nameOf(myVote.pos2)}</p>
                 <p>🥉 3° {nameOf(myVote.pos3)}</p>
+                <p>🔻 Ultimo {myVote.ultimo ? nameOf(myVote.ultimo) : '—'}</p>
               </div>
               <button
                 onClick={() => setEditing(true)}
@@ -104,6 +105,7 @@ function ClassificaPodio({ rows }: { rows: PodioClassificaRow[] | undefined }) {
                 <th className="px-2 py-1.5 text-center font-medium">1°</th>
                 <th className="px-2 py-1.5 text-center font-medium">2°</th>
                 <th className="px-2 py-1.5 text-center font-medium">3°</th>
+                <th className="px-2 py-1.5 text-center font-medium">Ult.</th>
                 <th className="px-2 py-1.5 text-right font-medium">Punti</th>
               </tr>
             </thead>
@@ -114,6 +116,7 @@ function ClassificaPodio({ rows }: { rows: PodioClassificaRow[] | undefined }) {
                   <td className="px-2 py-1.5 text-center text-slate-300">{r.c1}</td>
                   <td className="px-2 py-1.5 text-center text-slate-300">{r.c2}</td>
                   <td className="px-2 py-1.5 text-center text-slate-300">{r.c3}</td>
+                  <td className="px-2 py-1.5 text-center text-slate-400">{r.cu}</td>
                   <td className="px-2 py-1.5 text-right font-bold text-accent">{r.punti}</td>
                 </tr>
               ))}
@@ -143,11 +146,12 @@ function PodioVoteForm({
   const [pos1, setPos1] = useState(initial?.pos1 ?? '')
   const [pos2, setPos2] = useState(initial?.pos2 ?? '')
   const [pos3, setPos3] = useState(initial?.pos3 ?? '')
+  const [ultimo, setUltimo] = useState(initial?.ultimo ?? '')
 
   async function onSave() {
-    if (!pos1 || !pos2 || !pos3) return
+    if (!pos1 || !pos2 || !pos3 || !ultimo) return
     try {
-      await submit.mutateAsync({ round_id: roundId, pos1, pos2, pos3 })
+      await submit.mutateAsync({ round_id: roundId, pos1, pos2, pos3, ultimo })
       toast.success('Voto registrato')
       onSaved()
     } catch (err) {
@@ -158,11 +162,18 @@ function PodioVoteForm({
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-400">
-        Scegli le squadre per 1°, 2° e 3° posto tra le {squadre.length} in gara.
+        Scegli le squadre per 1°, 2°, 3° e ultimo posto tra le {squadre.length} in gara.
       </p>
-      <PosSelect label="1° posto" value={pos1} onChange={setPos1} options={squadre} exclude={[pos2, pos3]} />
-      <PosSelect label="2° posto" value={pos2} onChange={setPos2} options={squadre} exclude={[pos1, pos3]} />
-      <PosSelect label="3° posto" value={pos3} onChange={setPos3} options={squadre} exclude={[pos1, pos2]} />
+      <PosSelect label="1° posto" value={pos1} onChange={setPos1} options={squadre} exclude={[pos2, pos3, ultimo]} />
+      <PosSelect label="2° posto" value={pos2} onChange={setPos2} options={squadre} exclude={[pos1, pos3, ultimo]} />
+      <PosSelect label="3° posto" value={pos3} onChange={setPos3} options={squadre} exclude={[pos1, pos2, ultimo]} />
+      <PosSelect
+        label="Ultimo posto"
+        value={ultimo}
+        onChange={setUltimo}
+        options={squadre}
+        exclude={[pos1, pos2, pos3]}
+      />
       <div className="flex gap-2">
         {onCancel && (
           <button
@@ -174,7 +185,7 @@ function PodioVoteForm({
         )}
         <button
           onClick={onSave}
-          disabled={!pos1 || !pos2 || !pos3 || submit.isPending}
+          disabled={!pos1 || !pos2 || !pos3 || !ultimo || submit.isPending}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent-strong py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {submit.isPending ? <Spinner /> : 'Vota'}

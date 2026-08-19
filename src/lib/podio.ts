@@ -1,4 +1,4 @@
-// Votazione podio: l'admin apre un round, i manager votano 1°/2°/3° tra le squadre.
+// Votazione podio: l'admin apre un round, i manager votano 1°/2°/3° e ultimo tra le squadre.
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
@@ -83,6 +83,7 @@ export function usePodioClassifica(roundId: number | undefined, enabled = true) 
         c1: r.c1,
         c2: r.c2,
         c3: r.c3,
+        cu: r.cu,
       }))
     },
     staleTime: 5_000,
@@ -96,7 +97,13 @@ export function useSubmitPodioVote() {
   const { manager } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { round_id: number; pos1: string; pos2: string; pos3: string }) => {
+    mutationFn: async (input: {
+      round_id: number
+      pos1: string
+      pos2: string
+      pos3: string
+      ultimo: string | null
+    }) => {
       if (!manager) throw new Error('Non autenticato')
       const { error } = await supabase.from('podio_votes').upsert(
         {
@@ -105,6 +112,7 @@ export function useSubmitPodioVote() {
           pos1: input.pos1,
           pos2: input.pos2,
           pos3: input.pos3,
+          ultimo: input.ultimo,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'round_id,manager_id' },
@@ -169,13 +177,14 @@ export interface PodioClassificaRow {
   c1: number
   c2: number
   c3: number
+  cu: number
 }
 
 export function computePodioClassifica(votes: PodioVote[], managers: Manager[]): PodioClassificaRow[] {
   const rows = new Map<string, PodioClassificaRow>()
   for (const m of managers) {
     if (!m.team_name) continue
-    rows.set(m.id, { managerId: m.id, nome: m.team_name || m.display_name, punti: 0, c1: 0, c2: 0, c3: 0 })
+    rows.set(m.id, { managerId: m.id, nome: m.team_name || m.display_name, punti: 0, c1: 0, c2: 0, c3: 0, cu: 0 })
   }
   for (const v of votes) {
     const r1 = rows.get(v.pos1)
@@ -193,6 +202,8 @@ export function computePodioClassifica(votes: PodioVote[], managers: Manager[]):
       r3.punti += 1
       r3.c3 += 1
     }
+    const ru = v.ultimo ? rows.get(v.ultimo) : undefined
+    if (ru) ru.cu += 1
   }
   return Array.from(rows.values()).sort((a, b) => b.punti - a.punti || b.c1 - a.c1)
 }
