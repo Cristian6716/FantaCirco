@@ -19,7 +19,7 @@ const TEAM_BY_OWNER = {
   Lorenzo: 'Rubin Kebab',
   Damiano: 'Fc Padre Tempo',
   Stefan: 'Fessa Kyoto Fc',
-  Gabbo: 'Minotorino',
+  Gabbo: 'Minotoro',
   Pezzu: 'Hadjuk Spanato',
   Angelico: 'Frocinone',
   Fritto: 'Energy Team',
@@ -27,10 +27,22 @@ const TEAM_BY_OWNER = {
   Riccardo: 'One Pisa',
   Dima: 'Napolethanos',
   Qara: 'QARABAGGIO',
-  Rod: 'VILTRUM',
+  Rod: 'SAO SALVADOR',
   Mirko: 'PASSAMO ALLE COSE FORMALI',
   Salvatori: 'Fredin FC',
   Triboli: 'Cani della Malesia',
+}
+
+// Squadre rinominate: vecchio team_name -> nome attuale. Il nome squadra e'
+// anche il display_name.
+const RINOMINATE = {
+  'Rocks Pirates': 'SAO SALVADOR',
+  VILTRUM: 'SAO SALVADOR',
+  'Come VaVa': 'PASSAMO ALLE COSE FORMALI',
+  'Beautiful Abbyssinian': 'Frocinone',
+  'Lang olodelsesso': 'Hadjuk Spanato',
+  'Soh Matta': 'Minotoro',
+  Minotorino: 'Minotoro',
 }
 
 // Budget di partenza dell'asta estiva (Frocinone ne aveva uno in più).
@@ -153,8 +165,9 @@ say('update giornate set pronostici_chiusi = false;')
 say('update partite set gol_casa = null, gol_trasferta = null;')
 say('')
 say('-- 2) Squadre rinominate quest\'anno.')
-say(`update managers set team_name = 'VILTRUM', display_name = 'VILTRUM' where team_name = 'Rocks Pirates';`)
-say(`update managers set team_name = 'PASSAMO ALLE COSE FORMALI', display_name = 'PASSAMO ALLE COSE FORMALI' where team_name = 'Come VaVa';`)
+for (const [vecchio, nuovo] of Object.entries(RINOMINATE)) {
+  say(`update managers set team_name = '${nuovo}', display_name = '${nuovo}' where team_name = '${vecchio}';`)
+}
 say('-- Il calendario si riaggancia agli account per nome squadra.')
 say('update partite p set casa_manager = m.id from managers m where m.team_name = p.casa;')
 say('update partite p set trasferta_manager = m.id from managers m where m.team_name = p.trasferta;')

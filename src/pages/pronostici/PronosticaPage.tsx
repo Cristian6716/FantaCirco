@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
-import { useGiornate, usePartite, usePronostici, useSavePronostici } from '../../lib/leagueQueries'
+import {
+  giornataChiusa,
+  useGiornate,
+  useOraCorrente,
+  usePartite,
+  usePronostici,
+  useSavePronostici,
+} from '../../lib/leagueQueries'
+import { countdown, formatDateTime } from '../../lib/format'
 import { EmptyState, PageLoader, Spinner } from '../../components/ui'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../auth/AuthProvider'
@@ -16,7 +24,7 @@ export default function PronosticaPage() {
   // Giornata corrente: la prima aperta, altrimenti l'ultima disponibile.
   const defaultGiornata = useMemo(() => {
     if (!giornate || giornate.length === 0) return null
-    const aperta = giornate.find((g) => !g.pronostici_chiusi)
+    const aperta = giornate.find((g) => !giornataChiusa(g))
     return (aperta ?? giornate[giornate.length - 1]).numero
   }, [giornate])
 
@@ -27,7 +35,11 @@ export default function PronosticaPage() {
   const [choices, setChoices] = useState<Record<string, { p1x2?: string; pou?: string }>>({})
 
   const giornataInfo = giornate?.find((g) => g.numero === current)
-  const chiusa = !!giornataInfo?.pronostici_chiusi
+  // La deadline scatta da sola: `ora` avanza mentre si avvicina l'orario, così
+  // il form passa in sola lettura senza bisogno di ricaricare.
+  const ora = useOraCorrente(giornataInfo?.chiusura_at)
+  const chiusa = giornataChiusa(giornataInfo, ora)
+  const deadline = !chiusa && giornataInfo?.chiusura_at ? giornataInfo.chiusura_at : null
 
   const partiteGiornata = useMemo(
     () => (partite ?? []).filter((p) => p.giornata === current).sort((a, b) => a.ordine - b.ordine),
@@ -102,6 +114,12 @@ export default function PronosticaPage() {
           {chiusa ? (
             <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
               🔒 Pronostici chiusi per questa giornata. Vedi qui sotto i risultati e i tuoi punti.
+            </p>
+          ) : deadline ? (
+            <p className="rounded-lg border border-accent-strong/40 bg-accent-strong/10 px-3 py-2 text-xs text-slate-200">
+              ⏳ Chiusura automatica il {formatDateTime(deadline)} — manca{' '}
+              <span className="font-semibold tabular-nums">{countdown(deadline, ora)}</span>. Puoi
+              modificare i pronostici fino a quel momento.
             </p>
           ) : (
             <p className="text-xs text-slate-400">

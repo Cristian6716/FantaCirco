@@ -408,16 +408,19 @@ export type Database = {
       }
       giornate: {
         Row: {
+          chiusura_at: string | null
           created_at: string
           numero: number
           pronostici_chiusi: boolean
         }
         Insert: {
+          chiusura_at?: string | null
           created_at?: string
           numero: number
           pronostici_chiusi?: boolean
         }
         Update: {
+          chiusura_at?: string | null
           created_at?: string
           numero?: number
           pronostici_chiusi?: boolean

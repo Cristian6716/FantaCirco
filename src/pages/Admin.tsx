@@ -17,9 +17,11 @@ import {
   updateManagerCredits,
   type NewPlayer,
 } from '../lib/api'
-import { isActive, MANTRA_ROLES, parseRoles } from '../lib/format'
+import { countdown, formatDateTime, isActive, MANTRA_ROLES, parseRoles } from '../lib/format'
 import {
   buildGiornateScores,
+  giornataChiusa,
+  useAdminSetChiusuraAt,
   useAdminSetOverride,
   useAdminSetPunteggio,
   useAdminSetRisultato,
@@ -29,6 +31,7 @@ import {
   usePartite,
   usePronostici,
   usePunteggiGiornata,
+  useOraCorrente,
   type Partita,
   type Pronostico,
 } from '../lib/leagueQueries'
@@ -910,12 +913,15 @@ function GiornateTab() {
   const setPunteggio = useAdminSetPunteggio()
   const setRisultato = useAdminSetRisultato()
   const toggleGiornata = useAdminToggleGiornata()
+  const setChiusuraAt = useAdminSetChiusuraAt()
   const setOverride = useAdminSetOverride()
 
   const numeri = useMemo(() => (giornate ?? []).map((g) => g.numero), [giornate])
   const [selected, setSelected] = useState<number | null>(null)
   const current = selected ?? (numeri.length > 0 ? numeri[0] : null)
   const giornataInfo = giornate?.find((g) => g.numero === current)
+  const ora = useOraCorrente(giornataInfo?.chiusura_at)
+  const chiusa = giornataChiusa(giornataInfo, ora)
 
   const squadre = useMemo(
     () => (managers ?? []).filter((m) => !!m.team_name).sort((a, b) => (a.team_name || a.display_name).localeCompare(b.team_name || b.display_name)),
@@ -995,8 +1001,40 @@ function GiornateTab() {
   async function toggleChiusura() {
     if (current == null) return
     try {
-      await toggleGiornata.mutateAsync({ numero: current, chiusa: !giornataInfo?.pronostici_chiusi })
-      toast.success(giornataInfo?.pronostici_chiusi ? 'Pronostici riaperti' : 'Pronostici chiusi')
+      if (chiusa) {
+        // Riaprire vuol dire togliere sia il flag manuale sia una deadline
+        // già scaduta, altrimenti il blocco automatico richiuderebbe subito.
+        await toggleGiornata.mutateAsync({ numero: current, chiusa: false })
+        if (giornataInfo?.chiusura_at) {
+          await setChiusuraAt.mutateAsync({ numero: current, chiusura_at: null })
+        }
+        toast.success('Pronostici riaperti')
+      } else {
+        await toggleGiornata.mutateAsync({ numero: current, chiusa: true })
+        toast.success('Pronostici chiusi')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  // <input type="datetime-local"> lavora in ora locale, senza fuso: converto
+  // avanti e indietro tenendo conto dell'offset del browser.
+  function toLocalInput(iso: string | null | undefined): string {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (!Number.isFinite(d.getTime())) return ''
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+  }
+
+  async function salvaChiusuraAt(value: string) {
+    if (current == null) return
+    try {
+      await setChiusuraAt.mutateAsync({
+        numero: current,
+        chiusura_at: value === '' ? null : new Date(value).toISOString(),
+      })
+      toast.success(value === '' ? 'Chiusura automatica rimossa' : 'Chiusura automatica impostata')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Errore')
     }
@@ -1007,24 +1045,54 @@ function GiornateTab() {
       <GiornataPickerAdmin numeri={numeri} current={current} onChange={setSelected} />
 
       {/* Chiusura pronostici */}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-3">
-        <div>
-          <p className="text-sm font-medium text-white">
-            Pronostici {giornataInfo?.pronostici_chiusi ? 'chiusi' : 'aperti'}
-          </p>
-          <p className="text-xs text-slate-400">{pronosticiCount} squadre hanno pronosticato</p>
+      <div className="space-y-3 rounded-xl border border-border bg-surface p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">Pronostici {chiusa ? 'chiusi' : 'aperti'}</p>
+            <p className="text-xs text-slate-400">{pronosticiCount} squadre hanno pronosticato</p>
+          </div>
+          <button
+            onClick={toggleChiusura}
+            className={[
+              'rounded-lg border px-3 py-1.5 text-xs font-semibold',
+              chiusa
+                ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
+                : 'border-amber-500/50 bg-amber-500/10 text-amber-200',
+            ].join(' ')}
+          >
+            {chiusa ? 'Riapri' : 'Chiudi'}
+          </button>
         </div>
-        <button
-          onClick={toggleChiusura}
-          className={[
-            'rounded-lg border px-3 py-1.5 text-xs font-semibold',
-            giornataInfo?.pronostici_chiusi
-              ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
-              : 'border-amber-500/50 bg-amber-500/10 text-amber-200',
-          ].join(' ')}
-        >
-          {giornataInfo?.pronostici_chiusi ? 'Riapri' : 'Chiudi'}
-        </button>
+
+        <div className="border-t border-border pt-3">
+          <label className="block text-xs font-medium text-slate-300" htmlFor="chiusura-at">
+            Chiusura automatica
+          </label>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              id="chiusura-at"
+              type="datetime-local"
+              value={toLocalInput(giornataInfo?.chiusura_at)}
+              onChange={(e) => void salvaChiusuraAt(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-xs text-white"
+            />
+            {giornataInfo?.chiusura_at && (
+              <button
+                onClick={() => void salvaChiusuraAt('')}
+                className="rounded-lg border border-border px-2 py-1.5 text-xs text-slate-300"
+              >
+                Rimuovi
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-xs text-slate-400">
+            {giornataInfo?.chiusura_at
+              ? giornataChiusa(giornataInfo, ora) && !giornataInfo.pronostici_chiusi
+                ? `Chiusa automaticamente il ${formatDateTime(giornataInfo.chiusura_at)}.`
+                : `Si chiude il ${formatDateTime(giornataInfo.chiusura_at)} — manca ${countdown(giornataInfo.chiusura_at, ora)}.`
+              : 'Nessuna deadline: la giornata si chiude solo a mano.'}
+          </p>
+        </div>
       </div>
 
       {/* Chi ha pronosticato cosa */}

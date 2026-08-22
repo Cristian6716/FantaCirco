@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type { Tables } from './database.types'
@@ -10,6 +10,42 @@ export type Partita = Tables<'partite'>
 export type Pronostico = Tables<'pronostici'>
 export type PunteggioGiornata = Tables<'punteggi_giornata'>
 export type TorneoOverride = Tables<'torneo_overrides'>
+
+// ---------------- Chiusura pronostici ----------------
+
+/**
+ * Una giornata è chiusa se l'admin l'ha chiusa a mano oppure se è passata la
+ * deadline di chiusura automatica. Stessa regola applicata dalle policy RLS
+ * (giornata_bloccata), qui replicata solo per l'interfaccia.
+ */
+export function giornataChiusa(g: Giornata | null | undefined, now: number = Date.now()): boolean {
+  if (!g) return false
+  if (g.pronostici_chiusi) return true
+  return g.chiusura_at != null && now >= new Date(g.chiusura_at).getTime()
+}
+
+/**
+ * Tiene aggiornata l'ora corrente mentre manca poco alla deadline, così il
+ * form si blocca da solo allo scoccare dell'orario senza ricaricare la pagina.
+ */
+export function useOraCorrente(deadline: string | null | undefined): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!deadline) return
+    const target = new Date(deadline).getTime()
+    if (!Number.isFinite(target)) return
+    // Niente timer se la deadline è già passata o è a più di un giorno:
+    // il valore calcolato al mount basta e avanza.
+    const restante = target - Date.now()
+    if (restante <= 0 || restante > 86_400_000) return
+    const id = setInterval(() => {
+      setNow(Date.now())
+      if (Date.now() >= target) clearInterval(id)
+    }, 1_000)
+    return () => clearInterval(id)
+  }, [deadline])
+  return now
+}
 
 // ---------------- Query ----------------
 
@@ -181,6 +217,23 @@ export function useAdminToggleGiornata() {
       const { error } = await supabase
         .from('giornate')
         .update({ pronostici_chiusi: input.chiusa })
+        .eq('numero', input.numero)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['giornate'] })
+      qc.invalidateQueries({ queryKey: ['pronostici'] })
+    },
+  })
+}
+
+export function useAdminSetChiusuraAt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { numero: number; chiusura_at: string | null }) => {
+      const { error } = await supabase
+        .from('giornate')
+        .update({ chiusura_at: input.chiusura_at })
         .eq('numero', input.numero)
       if (error) throw new Error(error.message)
     },
