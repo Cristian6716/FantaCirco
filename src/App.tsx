@@ -5,7 +5,6 @@ import { Layout } from './components/Layout'
 import { PageLoader } from './components/ui'
 import { resyncPush } from './lib/push'
 import LoginPage from './pages/Login'
-import PodioPreview from './pages/__PodioPreview'
 import ChooseTeamPage from './pages/ChooseTeamPage'
 import HomePage from './pages/Home'
 import AuctionsPage from './pages/Auctions'
@@ -52,7 +51,7 @@ export default function App() {
   }
 
   if (!session || !manager) {
-    return <PodioPreview />
+    return <LoginPage />
   }
 
   if (!manager.team_name) {
