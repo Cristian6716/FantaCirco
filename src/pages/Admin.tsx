@@ -17,7 +17,14 @@ import {
   updateManagerCredits,
   type NewPlayer,
 } from '../lib/api'
-import { countdown, formatDateTime, isActive, MANTRA_ROLES, parseRoles } from '../lib/format'
+import {
+  countdown,
+  formatDateTime,
+  isActive,
+  MANTRA_ROLES,
+  parseRoles,
+  toDatetimeLocal,
+} from '../lib/format'
 import {
   buildGiornateScores,
   giornataChiusa,
@@ -65,7 +72,20 @@ import {
   useAdminPodioVotes,
   useAdminStartPodioRound,
   usePodioRounds,
+  podioRoundChiuso,
+  useAdminSetPodioChiusuraAt,
 } from '../lib/podio'
+import {
+  rivalitaChiuse,
+  useAdminDeleteRivalita,
+  useAdminRivalitaVotes,
+  useAdminSaveRivalita,
+  useAdminSetRivalitaChiusura,
+  useRivalita,
+  useRivalitaConfig,
+  type Rivalita,
+} from '../lib/rivalita'
+import { TEAM_NAMES } from '../lib/teams'
 import {
   useAdminAddAlboOro,
   useAdminAddStatisticaMercato,
@@ -90,14 +110,23 @@ import {
 const inputCls =
   'w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-white outline-none focus:border-accent'
 
-type Tab = 'managers' | 'players' | 'auctions' | 'giornate' | 'podio' | 'scambi' | 'statistiche' | 'megagalattico'
+type Tab =
+  | 'managers'
+  | 'players'
+  | 'auctions'
+  | 'giornate'
+  | 'podio'
+  | 'rivalita'
+  | 'scambi'
+  | 'statistiche'
+  | 'megagalattico'
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('managers')
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-white">Amministrazione</h1>
-      <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1 text-sm sm:grid-cols-4 lg:grid-cols-8">
+      <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1 text-sm sm:grid-cols-4 lg:grid-cols-9">
         <TabBtn active={tab === 'managers'} onClick={() => setTab('managers')}>
           Squadre
         </TabBtn>
@@ -112,6 +141,9 @@ export default function AdminPage() {
         </TabBtn>
         <TabBtn active={tab === 'podio'} onClick={() => setTab('podio')}>
           Podio
+        </TabBtn>
+        <TabBtn active={tab === 'rivalita'} onClick={() => setTab('rivalita')}>
+          Rivalità
         </TabBtn>
         <TabBtn active={tab === 'scambi'} onClick={() => setTab('scambi')}>
           Scambi
@@ -128,6 +160,7 @@ export default function AdminPage() {
       {tab === 'auctions' && <AuctionsTab />}
       {tab === 'giornate' && <GiornateTab />}
       {tab === 'podio' && <PodioTab />}
+      {tab === 'rivalita' && <RivalitaTab />}
       {tab === 'scambi' && <ScambiTab />}
       {tab === 'statistiche' && <StatisticheTab />}
       {tab === 'megagalattico' && <MegagalatticoTab />}
@@ -1018,15 +1051,6 @@ function GiornateTab() {
     }
   }
 
-  // <input type="datetime-local"> lavora in ora locale, senza fuso: converto
-  // avanti e indietro tenendo conto dell'offset del browser.
-  function toLocalInput(iso: string | null | undefined): string {
-    if (!iso) return ''
-    const d = new Date(iso)
-    if (!Number.isFinite(d.getTime())) return ''
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
-  }
-
   async function salvaChiusuraAt(value: string) {
     if (current == null) return
     try {
@@ -1072,7 +1096,7 @@ function GiornateTab() {
             <input
               id="chiusura-at"
               type="datetime-local"
-              value={toLocalInput(giornataInfo?.chiusura_at)}
+              value={toDatetimeLocal(giornataInfo?.chiusura_at)}
               onChange={(e) => void salvaChiusuraAt(e.target.value)}
               className="min-w-0 flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-xs text-white"
             />
@@ -1317,9 +1341,12 @@ function PodioTab() {
   const confirm = useConfirm()
   const startRound = useAdminStartPodioRound()
   const closeRound = useAdminClosePodioRound()
+  const setPodioChiusuraAt = useAdminSetPodioChiusuraAt()
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const current = rounds?.find((r) => r.id === selectedId) ?? rounds?.[0] ?? null
+  const ora = useOraCorrente(current?.chiusura_at)
+  const currentChiuso = podioRoundChiuso(current, ora)
 
   const { data: votes } = useAdminPodioVotes(current?.id)
 
@@ -1370,6 +1397,19 @@ function PodioTab() {
     }
   }
 
+  async function salvaChiusuraPodio(value: string) {
+    if (!current) return
+    try {
+      await setPodioChiusuraAt.mutateAsync({
+        roundId: current.id,
+        chiusura_at: value === '' ? null : new Date(value).toISOString(),
+      })
+      toast.success(value === '' ? 'Chiusura automatica rimossa' : 'Chiusura automatica impostata')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
   if (isLoading || !managers) return <PageLoader />
 
   return (
@@ -1399,7 +1439,7 @@ function PodioTab() {
                   : 'border-border bg-surface text-slate-300',
               ].join(' ')}
             >
-              Votazione {r.numero} · {r.status === 'open' ? 'aperta' : 'chiusa'}
+              Votazione {r.numero} · {podioRoundChiuso(r, ora) ? 'chiusa' : 'aperta'}
             </button>
           ))}
         </div>
@@ -1407,7 +1447,7 @@ function PodioTab() {
 
       {current && (
         <>
-          {current.status === 'open' && (
+          {!currentChiuso && (
             <button
               onClick={() => onClose(current.id)}
               className="w-full rounded-lg border border-amber-500/50 bg-amber-500/10 py-2 text-sm font-semibold text-amber-200"
@@ -1415,6 +1455,36 @@ function PodioTab() {
               Chiudi votazione {current.numero}
             </button>
           )}
+
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <label className="block text-xs font-medium text-slate-300" htmlFor="podio-chiusura-at">
+              Chiusura automatica
+            </label>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                id="podio-chiusura-at"
+                type="datetime-local"
+                value={toDatetimeLocal(current.chiusura_at)}
+                onChange={(e) => void salvaChiusuraPodio(e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-xs text-white"
+              />
+              {current.chiusura_at && (
+                <button
+                  onClick={() => void salvaChiusuraPodio('')}
+                  className="rounded-lg border border-border px-2 py-1.5 text-xs text-slate-300"
+                >
+                  Rimuovi
+                </button>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              {current.chiusura_at
+                ? currentChiuso && current.status === 'open'
+                  ? `Chiusa automaticamente il ${formatDateTime(current.chiusura_at)}.`
+                  : `Si chiude il ${formatDateTime(current.chiusura_at)} — manca ${countdown(current.chiusura_at, ora)}.`
+                : 'Nessuna deadline: la votazione si chiude solo a mano.'}
+            </p>
+          </div>
 
           <div className="rounded-xl border border-border bg-surface p-3">
             <h3 className="text-sm font-semibold text-slate-200">Classifica podio · Votazione {current.numero}</h3>
@@ -1467,6 +1537,247 @@ function PodioTab() {
             )}
           </div>
         </>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- Rivalità: duelli di stagione ---------------- */
+
+function RivalitaTab() {
+  const { data: rivalita, isLoading } = useRivalita()
+  const { data: config } = useRivalitaConfig()
+  const { data: votes } = useAdminRivalitaVotes()
+  const { data: managers } = useManagers()
+  const toast = useToast()
+  const confirm = useConfirm()
+  const save = useAdminSaveRivalita()
+  const del = useAdminDeleteRivalita()
+  const setChiusura = useAdminSetRivalitaChiusura()
+
+  const ora = useOraCorrente(config?.chiusura_at)
+  const chiuse = rivalitaChiuse(config, ora)
+
+  const nameOf = (id: string) => {
+    const m = managers?.find((x) => x.id === id)
+    return m ? m.team_name || m.display_name : '—'
+  }
+
+  async function salvaChiusura(value: string) {
+    try {
+      await setChiusura.mutateAsync(value === '' ? null : new Date(value).toISOString())
+      toast.success(value === '' ? 'Chiusura rimossa' : 'Chiusura impostata')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  async function onDelete(r: Rivalita) {
+    const ok = await confirm({
+      title: 'Eliminare la rivalità?',
+      message: `"${r.soprannome}" e tutti i pronostici collegati verranno cancellati.`,
+      confirmLabel: 'Elimina',
+    })
+    if (!ok) return
+    try {
+      await del.mutateAsync(r.id)
+      toast.success('Rivalità eliminata')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
+  if (isLoading) return <PageLoader />
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <label className="block text-xs font-medium text-slate-300" htmlFor="rivalita-chiusura-at">
+          Chiusura pronostici
+        </label>
+        <div className="mt-1.5 flex items-center gap-2">
+          <input
+            id="rivalita-chiusura-at"
+            type="datetime-local"
+            value={toDatetimeLocal(config?.chiusura_at)}
+            onChange={(e) => void salvaChiusura(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-xs text-white"
+          />
+          {config?.chiusura_at && (
+            <button
+              onClick={() => void salvaChiusura('')}
+              className="rounded-lg border border-border px-2 py-1.5 text-xs text-slate-300"
+            >
+              Rimuovi
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-xs text-slate-400">
+          {config?.chiusura_at
+            ? chiuse
+              ? `Pronostici chiusi dal ${formatDateTime(config.chiusura_at)}.`
+              : `Si chiudono il ${formatDateTime(config.chiusura_at)} — manca ${countdown(config.chiusura_at, ora)}.`
+            : 'Nessuna deadline: i pronostici restano sempre aperti.'}
+        </p>
+      </div>
+
+      {(rivalita ?? []).map((r) => (
+        <RivalitaForm
+          key={r.id}
+          initial={r}
+          onSave={async (input) => {
+            await save.mutateAsync({ ...input, id: r.id })
+            toast.success('Rivalità aggiornata')
+          }}
+          onDelete={() => void onDelete(r)}
+        />
+      ))}
+
+      <RivalitaForm
+        key={`nuova-${rivalita?.length ?? 0}`}
+        initial={null}
+        prossimoOrdine={(rivalita ?? []).reduce((max, r) => Math.max(max, r.ordine), 0) + 1}
+        onSave={async (input) => {
+          await save.mutateAsync(input)
+          toast.success('Rivalità aggiunta')
+        }}
+      />
+
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-slate-200">Chi ha pronosticato cosa</h3>
+        {!votes || votes.length === 0 ? (
+          <p className="mt-2 text-xs text-slate-500">Nessun pronostico ancora.</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {(rivalita ?? []).map((r) => {
+              const suoi = votes.filter((v) => v.rivalita_id === r.id)
+              return (
+                <div key={r.id}>
+                  <p className="text-xs font-semibold text-white">{r.soprannome}</p>
+                  {suoi.length === 0 ? (
+                    <p className="text-xs text-slate-500">Nessun pronostico.</p>
+                  ) : (
+                    suoi.map((v) => (
+                      <p key={v.manager_id} className="text-xs text-slate-300">
+                        {nameOf(v.manager_id)} → <span className="text-white">{v.scelta}</span>
+                      </p>
+                    ))
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RivalitaForm({
+  initial,
+  prossimoOrdine,
+  onSave,
+  onDelete,
+}: {
+  initial: Rivalita | null
+  prossimoOrdine?: number
+  onSave: (input: {
+    team_a: string
+    team_b: string
+    soprannome: string
+    ordine: number
+  }) => Promise<void>
+  onDelete?: () => void
+}) {
+  const toast = useToast()
+  const [teamA, setTeamA] = useState(initial?.team_a ?? '')
+  const [teamB, setTeamB] = useState(initial?.team_b ?? '')
+  const [soprannome, setSoprannome] = useState(initial?.soprannome ?? '')
+  const [ordine, setOrdine] = useState(String(initial?.ordine ?? prossimoOrdine ?? 0))
+  const [saving, setSaving] = useState(false)
+
+  const valido = !!teamA && !!teamB && teamA !== teamB && soprannome.trim() !== ''
+
+  async function submit() {
+    if (!valido) return
+    setSaving(true)
+    try {
+      await onSave({
+        team_a: teamA,
+        team_b: teamB,
+        soprannome: soprannome.trim(),
+        ordine: Number(ordine) || 0,
+      })
+      if (!initial) {
+        setTeamA('')
+        setTeamB('')
+        setSoprannome('')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {initial ? `Rivalità #${initial.id}` : 'Nuova rivalità'}
+      </p>
+      <input
+        value={soprannome}
+        onChange={(e) => setSoprannome(e.target.value)}
+        placeholder="Soprannome (es. Derby rumeno)"
+        className={inputCls}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <select value={teamA} onChange={(e) => setTeamA(e.target.value)} className={inputCls}>
+          <option value="">— squadra A —</option>
+          {TEAM_NAMES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select value={teamB} onChange={(e) => setTeamB(e.target.value)} className={inputCls}>
+          <option value="">— squadra B —</option>
+          {TEAM_NAMES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-slate-400" htmlFor={`ordine-${initial?.id ?? 'nuova'}`}>
+          Ordine
+        </label>
+        <input
+          id={`ordine-${initial?.id ?? 'nuova'}`}
+          type="number"
+          value={ordine}
+          onChange={(e) => setOrdine(e.target.value)}
+          className="w-20 rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm text-white"
+        />
+        <button
+          onClick={() => void submit()}
+          disabled={!valido || saving}
+          className="ml-auto rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {initial ? 'Salva' : 'Aggiungi'}
+        </button>
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="rounded-lg border border-danger/50 px-3 py-1.5 text-sm text-danger"
+          >
+            Elimina
+          </button>
+        )}
+      </div>
+      {teamA && teamA === teamB && (
+        <p className="text-xs text-danger">Le due squadre devono essere diverse.</p>
       )}
     </div>
   )

@@ -5,6 +5,7 @@ import { Layout } from './components/Layout'
 import { PageLoader } from './components/ui'
 import { resyncPush } from './lib/push'
 import LoginPage from './pages/Login'
+import PodioPreview from './pages/__PodioPreview'
 import ChooseTeamPage from './pages/ChooseTeamPage'
 import HomePage from './pages/Home'
 import AuctionsPage from './pages/Auctions'
@@ -15,6 +16,7 @@ import PronosticaPage from './pages/pronostici/PronosticaPage'
 import ClassificaPage from './pages/pronostici/ClassificaPage'
 import StoricoPage from './pages/pronostici/StoricoPage'
 import PodioPage from './pages/pronostici/PodioPage'
+import RivalitaPage from './pages/pronostici/RivalitaPage'
 import CampionatoPage from './pages/competizioni/CampionatoPage'
 import CoppaPage from './pages/competizioni/CoppaPage'
 import BattleRoyalePage from './pages/competizioni/BattleRoyalePage'
@@ -50,7 +52,7 @@ export default function App() {
   }
 
   if (!session || !manager) {
-    return <LoginPage />
+    return <PodioPreview />
   }
 
   if (!manager.team_name) {
@@ -71,6 +73,7 @@ export default function App() {
         <Route path="/pronostici/classifica" element={<ClassificaPage />} />
         <Route path="/pronostici/storico" element={<StoricoPage />} />
         <Route path="/pronostici/podio" element={<PodioPage />} />
+        <Route path="/pronostici/rivalita" element={<RivalitaPage />} />
         <Route path="/tornei" element={<Navigate to="/competizioni" replace />} />
         <Route path="/competizioni" element={<Navigate to="/competizioni/campionato" replace />} />
         <Route path="/competizioni/campionato" element={<CampionatoPage />} />

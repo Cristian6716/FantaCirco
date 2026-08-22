@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { useMyCredits, useRealtime } from '../lib/queries'
 import { useLeagueRealtime } from '../lib/leagueQueries'
 import { usePodioRealtime } from '../lib/podio'
+import { useRivalitaRealtime } from '../lib/rivalita'
 import { useRankingRealtime } from '../lib/rankingQueries'
 import { useStatisticheRealtime } from '../lib/statisticheQueries'
 import { useScambiRealtime } from '../lib/scambi'
@@ -162,6 +163,7 @@ const SECTIONS: Section[] = [
       { to: '/pronostici/classifica', label: 'Classifica' },
       { to: '/pronostici/storico', label: 'Storico' },
       { to: '/pronostici/podio', label: 'Podio' },
+      { to: '/pronostici/rivalita', label: 'Rivalità' },
     ],
   },
   {
@@ -280,6 +282,7 @@ export function Layout({ children }: { children: ReactNode }) {
   useLeagueRealtime()
   useMegagalatticoRealtime()
   usePodioRealtime()
+  useRivalitaRealtime()
   useRankingRealtime()
   useStatisticheRealtime()
   useScambiRealtime()

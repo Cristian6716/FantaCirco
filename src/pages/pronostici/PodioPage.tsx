@@ -1,23 +1,29 @@
 import { useMemo, useState } from 'react'
 import { useManagers } from '../../lib/queries'
 import {
+  podioRoundChiuso,
+  useLatestPodioRound,
   useMyPodioVote,
-  useOpenPodioRound,
   usePodioClassifica,
   useSubmitPodioVote,
   type PodioClassificaRow,
   type PodioVote,
 } from '../../lib/podio'
+import { useOraCorrente } from '../../lib/leagueQueries'
+import { countdown, formatDateTime } from '../../lib/format'
 import { EmptyState, PageLoader, Spinner } from '../../components/ui'
 import { useToast } from '../../components/Toast'
 
 export default function PodioPage() {
-  const round = useOpenPodioRound()
+  const round = useLatestPodioRound()
   const { data: managers, isLoading: mLoading } = useManagers()
   const { data: myVote, isLoading: vLoading } = useMyPodioVote(round?.id)
   const [editing, setEditing] = useState(false)
-  // La classifica si sblocca solo dopo aver votato.
-  const { data: classifica } = usePodioClassifica(round?.id, !!myVote)
+  // A deadline scaduta la pagina passa da sola ai risultati, senza ricaricare.
+  const ora = useOraCorrente(round?.chiusura_at)
+  const chiuso = podioRoundChiuso(round, ora)
+  // La classifica si sblocca dopo aver votato, o a votazione chiusa per tutti.
+  const { data: classifica } = usePodioClassifica(round?.id, chiuso || !!myVote)
 
   const squadre = useMemo(
     () =>
@@ -33,7 +39,8 @@ export default function PodioPage() {
 
   if (mLoading || vLoading) return <PageLoader />
 
-  const showForm = !!round && (!myVote || editing)
+  const showForm = !!round && !chiuso && (!myVote || editing)
+  const deadline = !chiuso && round?.chiusura_at ? round.chiusura_at : null
 
   return (
     <div className="space-y-4">
@@ -45,37 +52,155 @@ export default function PodioPage() {
           title="Nessuna votazione podio in corso"
           hint="Quando l'admin apre una votazione potrai scegliere il tuo podio qui."
         />
+      ) : chiuso ? (
+        <>
+          <PodioFinale rows={classifica} />
+          {myVote && <IlTuoVoto vote={myVote} nameOf={nameOf} />}
+          <ClassificaPodio rows={classifica} />
+        </>
       ) : showForm ? (
-        <PodioVoteForm
-          key={`${round.id}-${myVote ? 'edit' : 'new'}`}
-          roundId={round.id}
-          squadre={squadre}
-          initial={myVote ?? null}
-          onCancel={myVote ? () => setEditing(false) : undefined}
-          onSaved={() => setEditing(false)}
-        />
+        <>
+          {deadline && <BannerDeadline deadline={deadline} ora={ora} />}
+          <PodioVoteForm
+            key={`${round.id}-${myVote ? 'edit' : 'new'}`}
+            roundId={round.id}
+            squadre={squadre}
+            initial={myVote ?? null}
+            onCancel={myVote ? () => setEditing(false) : undefined}
+            onSaved={() => setEditing(false)}
+          />
+        </>
       ) : (
         myVote && (
           <>
-            <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
-              <p className="text-sm font-semibold text-accent">Hai votato</p>
-              <div className="mt-3 space-y-1.5 text-sm text-white">
-                <p>🥇 1° {nameOf(myVote.pos1)}</p>
-                <p>🥈 2° {nameOf(myVote.pos2)}</p>
-                <p>🥉 3° {nameOf(myVote.pos3)}</p>
-                <p>🔻 Ultimo {myVote.ultimo ? nameOf(myVote.ultimo) : '—'}</p>
-              </div>
-              <button
-                onClick={() => setEditing(true)}
-                className="mt-4 w-full rounded-xl border border-border bg-surface-2 py-2.5 text-sm font-medium text-slate-200 active:scale-[0.98]"
-              >
-                Modifica voto
-              </button>
-            </div>
-
+            {deadline && <BannerDeadline deadline={deadline} ora={ora} />}
+            <IlTuoVoto vote={myVote} nameOf={nameOf} onEdit={() => setEditing(true)} />
             <ClassificaPodio rows={classifica} />
           </>
         )
+      )}
+    </div>
+  )
+}
+
+// Banner con la deadline di chiusura automatica e il conto alla rovescia.
+function BannerDeadline({ deadline, ora }: { deadline: string; ora: number }) {
+  return (
+    <p className="rounded-lg border border-accent-strong/40 bg-accent-strong/10 px-3 py-2 text-xs text-slate-200">
+      ⏳ Le votazioni si chiudono il {formatDateTime(deadline)} — manca{' '}
+      <span className="font-semibold tabular-nums">{countdown(deadline, ora)}</span>. Dopo vedrai il
+      podio più votato.
+    </p>
+  )
+}
+
+function IlTuoVoto({
+  vote,
+  nameOf,
+  onEdit,
+}: {
+  vote: PodioVote
+  nameOf: (id: string) => string
+  onEdit?: () => void
+}) {
+  return (
+    <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4">
+      <p className="text-sm font-semibold text-accent">{onEdit ? 'Hai votato' : 'Il tuo voto'}</p>
+      <div className="mt-3 space-y-1.5 text-sm text-white">
+        <p>🥇 1° {nameOf(vote.pos1)}</p>
+        <p>🥈 2° {nameOf(vote.pos2)}</p>
+        <p>🥉 3° {nameOf(vote.pos3)}</p>
+        <p>🔻 Ultimo {vote.ultimo ? nameOf(vote.ultimo) : '—'}</p>
+      </div>
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="mt-4 w-full rounded-xl border border-border bg-surface-2 py-2.5 text-sm font-medium text-slate-200 active:scale-[0.98]"
+        >
+          Modifica voto
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ---------------- Podio finale ----------------
+
+// Aspetto dei tre gradini: oro al centro (più alto), argento a sinistra,
+// bronzo a destra, come su un podio vero.
+const GRADINI = [
+  { pos: 2, altezza: 'h-24', gradiente: 'from-slate-200 to-slate-400', medaglia: '🥈' },
+  { pos: 1, altezza: 'h-32', gradiente: 'from-amber-200 to-amber-400', medaglia: '🥇' },
+  { pos: 3, altezza: 'h-20', gradiente: 'from-orange-300 to-orange-600', medaglia: '🥉' },
+] as const
+
+/**
+ * Grafica del podio più votato, visibile a votazione chiusa: le tre squadre
+ * con più punti (3 per un 1° posto, 2 per un 2°, 1 per un 3°).
+ */
+export function PodioFinale({ rows }: { rows: PodioClassificaRow[] | undefined }) {
+  const votanti = rows ? rows.reduce((n, r) => n + r.c1, 0) : 0
+  const top3 = (rows ?? []).slice(0, 3)
+  const ultimo = useMemo(() => {
+    const candidati = (rows ?? []).filter((r) => r.cu > 0)
+    return candidati.length > 0
+      ? candidati.reduce((best, r) => (r.cu > best.cu ? r : best))
+      : null
+  }, [rows])
+
+  if (votanti === 0 || top3.length < 3) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface p-4 text-center">
+        <p className="text-sm font-semibold text-white">🏆 Votazione chiusa</p>
+        <p className="mt-1 text-xs text-slate-400">Non ci sono abbastanza voti per un podio.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-linear-to-b from-surface-2 to-surface p-4">
+      <div className="text-center">
+        <h2 className="text-base font-bold text-white">🏆 Il podio più votato</h2>
+        <p className="mt-0.5 text-xs text-slate-400">
+          Votazione chiusa · {votanti} {votanti === 1 ? 'voto' : 'voti'}
+        </p>
+      </div>
+
+      <div className="mt-5 flex items-end justify-center gap-1.5 sm:gap-3">
+        {GRADINI.map(({ pos, altezza, gradiente, medaglia }) => {
+          const row = top3[pos - 1]
+          return (
+            <div key={pos} className="flex min-w-0 flex-1 flex-col items-center">
+              <p className="mb-1.5 line-clamp-3 w-full text-center text-[11px] font-bold leading-tight text-white sm:text-xs">
+                {row.nome}
+              </p>
+              <div
+                className={[
+                  'flex w-full flex-col items-center justify-center rounded-t-lg bg-linear-to-b shadow-lg',
+                  altezza,
+                  gradiente,
+                ].join(' ')}
+              >
+                <span className="text-3xl font-black leading-none text-slate-900 sm:text-4xl">
+                  {pos}
+                </span>
+                <span className="mt-1 text-[10px] font-semibold text-slate-800/80">
+                  {row.punti} pt
+                </span>
+              </div>
+              <p className="w-full border-t-2 border-border/80 pt-1 text-center text-[10px] text-slate-400">
+                {medaglia} {row.c1} × 1°
+              </p>
+            </div>
+          )
+        })}
+      </div>
+
+      {ultimo && (
+        <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-center text-xs text-slate-200">
+          🔻 Ultimo più votato: <span className="font-semibold text-white">{ultimo.nome}</span> ·{' '}
+          {ultimo.cu} {ultimo.cu === 1 ? 'voto' : 'voti'}
+        </p>
       )}
     </div>
   )

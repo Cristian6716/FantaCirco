@@ -895,6 +895,7 @@ export type Database = {
       }
       podio_rounds: {
         Row: {
+          chiusura_at: string | null
           closed_at: string | null
           created_at: string
           id: number
@@ -902,6 +903,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          chiusura_at?: string | null
           closed_at?: string | null
           created_at?: string
           id?: number
@@ -909,6 +911,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          chiusura_at?: string | null
           closed_at?: string | null
           created_at?: string
           id?: number
@@ -1332,6 +1335,94 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rivalita: {
+        Row: {
+          created_at: string
+          id: number
+          ordine: number
+          soprannome: string
+          team_a: string
+          team_b: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          ordine?: number
+          soprannome: string
+          team_a: string
+          team_b: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          ordine?: number
+          soprannome?: string
+          team_a?: string
+          team_b?: string
+        }
+        Relationships: []
+      }
+      rivalita_config: {
+        Row: {
+          chiusura_at: string | null
+          id: boolean
+        }
+        Insert: {
+          chiusura_at?: string | null
+          id?: boolean
+        }
+        Update: {
+          chiusura_at?: string | null
+          id?: boolean
+        }
+        Relationships: []
+      }
+      rivalita_votes: {
+        Row: {
+          created_at: string
+          manager_id: string
+          rivalita_id: number
+          scelta: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          manager_id: string
+          rivalita_id: number
+          scelta: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          manager_id?: string
+          rivalita_id?: number
+          scelta?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rivalita_votes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rivalita_votes_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rivalita_votes_rivalita_id_fkey"
+            columns: ["rivalita_id"]
+            isOneToOne: false
+            referencedRelation: "rivalita"
             referencedColumns: ["id"]
           },
         ]
@@ -1916,6 +2007,15 @@ export type Database = {
       roster_committed: {
         Args: { p_exclude?: number; p_manager: string }
         Returns: number
+      }
+      rivalita_chiuse: { Args: never; Returns: boolean }
+      rivalita_riepilogo: {
+        Args: never
+        Returns: {
+          rivalita_id: number
+          voti_a: number
+          voti_b: number
+        }[]
       }
       set_autobid: {
         Args: { p_auction: number; p_max: number }

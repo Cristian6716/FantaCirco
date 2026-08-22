@@ -31,6 +31,25 @@ export function useOpenPodioRound(): PodioRound | undefined {
   return data?.find((r) => r.status === 'open')
 }
 
+/**
+ * Il round più recente, aperto o chiuso: a votazione finita la pagina deve
+ * continuare a mostrarlo per il podio finale.
+ */
+export function useLatestPodioRound(): PodioRound | undefined {
+  const { data } = usePodioRounds()
+  return data?.[0]
+}
+
+/**
+ * Un round è chiuso se l'admin l'ha chiuso oppure se è passata la deadline di
+ * chiusura automatica. Stessa regola di podio_round_chiuso() lato server.
+ */
+export function podioRoundChiuso(r: PodioRound | null | undefined, now: number = Date.now()): boolean {
+  if (!r) return false
+  if (r.status === 'closed') return true
+  return r.chiusura_at != null && now >= new Date(r.chiusura_at).getTime()
+}
+
 export function useMyPodioVote(roundId: number | undefined) {
   const { manager } = useAuth()
   return useQuery({
@@ -151,6 +170,23 @@ export function useAdminStartPodioRound() {
       if (insertErr) throw new Error(insertErr.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['podio_rounds'] }),
+  })
+}
+
+export function useAdminSetPodioChiusuraAt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { roundId: number; chiusura_at: string | null }) => {
+      const { error } = await supabase
+        .from('podio_rounds')
+        .update({ chiusura_at: input.chiusura_at })
+        .eq('id', input.roundId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['podio_rounds'] })
+      qc.invalidateQueries({ queryKey: ['podio_votes'] })
+    },
   })
 }
 

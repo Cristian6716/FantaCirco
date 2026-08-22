@@ -129,3 +129,14 @@ export function formatTime(value: string | Date): string {
   const d = typeof value === 'string' ? new Date(value) : value
   return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 }
+
+/**
+ * Converte un ISO in valore per <input type="datetime-local">, che lavora in
+ * ora locale senza fuso: tolgo l'offset del browser prima di troncare.
+ */
+export function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (!Number.isFinite(d.getTime())) return ''
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
