@@ -142,7 +142,8 @@ insert into rivalita (team_a, team_b, soprannome, ordine) values
   ('Sesko e Sambia', 'Fessa Kyoto Fc', 'Ego smisurato', 4),
   ('Minotoro', 'Fredin FC', 'Caino e Abele', 5),
   ('Napolethanos', 'Energy Team', 'Daje lazio daje', 6),
-  ('PASSAMO ALLE COSE FORMALI', 'Fc Padre Tempo', 'Pompini tra omini', 7)
+  ('PASSAMO ALLE COSE FORMALI', 'Fc Padre Tempo', 'Pompini tra omini', 7),
+  ('Rubin Kebab', 'One Pisa', 'I pupi', 8)
 on conflict do nothing;
 
 -- Pronostici aperti fino a sabato 29 agosto 2026 alle 18:30 (ora italiana).

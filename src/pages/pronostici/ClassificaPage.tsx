@@ -3,7 +3,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { useClassificaPronostici } from './useClassificaPronostici'
 
 export default function ClassificaPage() {
-  const rows = useClassificaPronostici()
+  const { rows, ultimaGiornata } = useClassificaPronostici()
   const { manager } = useAuth()
 
   return (
@@ -20,7 +20,9 @@ export default function ClassificaPage() {
                 <th className="px-2 py-2 text-left font-medium">Squadra</th>
                 <th className="px-2 py-2 text-center font-medium">1X2</th>
                 <th className="px-2 py-2 text-center font-medium">Multigol</th>
-                <th className="px-2 py-2 text-right font-medium">Punti</th>
+                <th className="px-2 py-2 text-right font-medium">
+                  Punti{ultimaGiornata !== null && ` (G${ultimaGiornata})`}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -33,7 +35,14 @@ export default function ClassificaPage() {
                   <td className="px-2 py-2 font-medium text-white">{r.nome}</td>
                   <td className="px-2 py-2 text-center text-slate-300">{r.azzeccati1X2}</td>
                   <td className="px-2 py-2 text-center text-slate-300">{r.azzeccatiOU}</td>
-                  <td className="px-2 py-2 text-right font-bold text-accent">{r.punti}</td>
+                  <td className="px-2 py-2 text-right font-bold text-accent">
+                    {r.punti}
+                    {ultimaGiornata !== null && (
+                      <span className="ml-1 text-xs font-medium text-slate-400">
+                        (+{r.puntiUltima})
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

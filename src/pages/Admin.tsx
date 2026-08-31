@@ -950,8 +950,18 @@ function GiornateTab() {
   const setOverride = useAdminSetOverride()
 
   const numeri = useMemo(() => (giornate ?? []).map((g) => g.numero), [giornate])
+
+  // Giornata in corso: la prima senza punteggi salvati. Appena ne calcolo una,
+  // aprendo il tab mi ritrovo già sulla successiva. Se sono tutte calcolate
+  // resto sull'ultima.
+  const giornataCorrente = useMemo(() => {
+    if (numeri.length === 0) return null
+    const calcolate = new Set((punteggi ?? []).map((p) => p.giornata))
+    return numeri.find((n) => !calcolate.has(n)) ?? numeri[numeri.length - 1]
+  }, [numeri, punteggi])
+
   const [selected, setSelected] = useState<number | null>(null)
-  const current = selected ?? (numeri.length > 0 ? numeri[0] : null)
+  const current = selected ?? giornataCorrente
   const giornataInfo = giornate?.find((g) => g.numero === current)
   const ora = useOraCorrente(giornataInfo?.chiusura_at)
   const chiusa = giornataChiusa(giornataInfo, ora)
