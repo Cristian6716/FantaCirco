@@ -185,20 +185,7 @@ export default function AuctionDetailPage() {
       {/* Azioni */}
       {active && auction.status !== 'paused' && (
         <>
-          {isLeader ? (
-            <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4 text-center text-sm text-accent">
-              🥇 Sei in testa! Non puoi rilanciare su te stesso.
-              <div className="mt-3">
-                <AutobidPanel
-                  auctionId={auction.id}
-                  currentBid={auction.current_bid}
-                  myMax={myAutobid?.max_amount ?? null}
-                  capacity={capacity}
-                  isLeader
-                />
-              </div>
-            </div>
-          ) : withdrawn ? (
+          {withdrawn ? (
             <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-center text-sm text-rose-200">
               🚪 Ti sei ritirato da questa asta: non puoi più rilanciare.
             </div>
@@ -208,6 +195,11 @@ export default function AuctionDetailPage() {
             </div>
           ) : (
             <>
+              {isLeader && (
+                <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4 text-center text-sm text-accent">
+                  🥇 Sei in testa! Puoi comunque rilanciare per alzare la tua offerta.
+                </div>
+              )}
               {rosterFull && (
                 <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm text-amber-200">
                   Rosa al completo ({credits?.roster_max ?? 0} giocatori, aste in corso incluse):
@@ -226,8 +218,9 @@ export default function AuctionDetailPage() {
                 myMax={myAutobid?.max_amount ?? null}
                 capacity={capacity}
                 blocked={rosterFull}
+                isLeader={isLeader}
               />
-              {myPart && (
+              {myPart && !isLeader && (
                 <WithdrawPanel
                   auctionId={auction.id}
                   playerName={player?.name ?? ''}
