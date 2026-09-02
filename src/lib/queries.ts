@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type { Tables } from './database.types'
@@ -165,6 +165,47 @@ export function useMyAutobid(auctionId: number | undefined) {
     },
     staleTime: 2_000,
   })
+}
+
+/**
+ * Istante oltre il quale non si possono piu' avviare nuove aste (null = nessun
+ * blocco). Il blocco vero sta in start_auction: qui serve solo per il timer e
+ * per disabilitare i pulsanti prima della chiamata.
+ */
+export function useAsteChiusura() {
+  return useQuery({
+    queryKey: ['aste-chiusura'],
+    queryFn: async (): Promise<string | null> => {
+      const { data, error } = await supabase.rpc('aste_chiusura_at')
+      if (error) throw error
+      return (data as string | null) ?? null
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export interface AsteWindow {
+  /** Istante di chiusura (ISO) oppure null se non c'è alcun blocco. */
+  deadline: string | null
+  /** True quando la deadline è passata: niente nuove aste. */
+  closed: boolean
+}
+
+/**
+ * Finestra di avvio delle nuove aste. Il tick a un secondo fa scattare da solo
+ * il passaggio a "chiuso" senza ricaricare la pagina; le aste già in corso non
+ * sono toccate e proseguono fino alla loro scadenza.
+ */
+export function useAsteWindow(): AsteWindow {
+  const { data } = useAsteChiusura()
+  const deadline = data ?? null
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!deadline) return
+    const i = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(i)
+  }, [deadline])
+  return { deadline, closed: deadline != null && now >= new Date(deadline).getTime() }
 }
 
 const defaultNotificationPrefs = {

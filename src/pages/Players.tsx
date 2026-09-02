@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  useAsteWindow,
   useAuctions,
   useManagers,
   useMyCredits,
@@ -13,6 +14,7 @@ import { MACRO_LABEL, ROLE_MACRO, type Macro } from '../lib/format'
 import { startAuction } from '../lib/api'
 import { useToast } from '../components/Toast'
 import { buildWhatsappMessage, shareOnWhatsapp } from '../lib/share'
+import { AsteWindowBanner } from '../components/AsteWindow'
 
 type RoleFilter = 'all' | Macro
 
@@ -26,6 +28,7 @@ export default function PlayersPage() {
   const [target, setTarget] = useState<Player | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const filtersActive = role !== 'all' || showTaken
+  const { closed: asteChiuse } = useAsteWindow()
 
   const managerMap = useMemo(() => new Map((managers ?? []).map((m) => [m.id, m])), [managers])
   const activeAuctionByPlayer = useMemo(() => {
@@ -52,6 +55,8 @@ export default function PlayersPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-white">Giocatori svincolati</h1>
+
+      <AsteWindowBanner />
 
       <input
         value={search}
@@ -146,6 +151,7 @@ export default function PlayersPage() {
                 p.owner_team ?? (p.assigned_to ? managerMap.get(p.assigned_to)?.display_name ?? '—' : null)
               }
               activeAuctionId={activeAuctionByPlayer.get(p.id)}
+              blocked={asteChiuse}
               onStart={() => setTarget(p)}
             />
           ))}
@@ -161,11 +167,13 @@ function PlayerRow({
   player,
   assignedToName,
   activeAuctionId,
+  blocked,
   onStart,
 }: {
   player: Player
   assignedToName: string | null
   activeAuctionId?: number
+  blocked: boolean
   onStart: () => void
 }) {
   const navigate = useNavigate()
@@ -179,7 +187,9 @@ function PlayerRow({
       {player.status === 'available' && (
         <button
           onClick={onStart}
-          className="rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          disabled={blocked}
+          title={blocked ? 'Avvio nuove aste chiuso' : undefined}
+          className="rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-40 disabled:active:scale-100"
         >
           Avvia
         </button>
@@ -204,6 +214,7 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
   const toast = useToast()
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { closed: asteChiuse } = useAsteWindow()
   const [base, setBase] = useState(1)
   const [loading, setLoading] = useState(false)
   const [created, setCreated] = useState<{ id: number; phase1EndsAt: string } | null>(null)
@@ -211,7 +222,7 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
   const available = credits?.available ?? 0
   const rosterFull = credits ? (credits.roster_free ?? 0) <= 0 : false
   const tooHigh = base > available
-  const invalid = base < 1 || tooHigh || rosterFull
+  const invalid = base < 1 || tooHigh || rosterFull || asteChiuse
 
   async function onConfirm() {
     setLoading(true)
@@ -271,6 +282,11 @@ function StartAuctionModal({ player, onClose }: { player: Player; onClose: () =>
             {rosterFull && (
               <p className="mt-2 text-xs text-amber-300">
                 Rosa al completo (aste in corso incluse): non puoi avviare altre aste.
+              </p>
+            )}
+            {asteChiuse && (
+              <p className="mt-2 text-xs text-rose-300">
+                Avvio nuove aste chiuso: non si possono più aprire aste.
               </p>
             )}
 

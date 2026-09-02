@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import {
+  useAsteWindow,
   useAuctions,
   useManagers,
   useMyParticipations,
@@ -10,6 +11,7 @@ import {
 } from '../lib/queries'
 import { Countdown, EmptyState, PageLoader, RoleBadge, StatusBadge } from '../components/ui'
 import { isActive } from '../lib/format'
+import { AsteWindowBanner } from '../components/AsteWindow'
 
 type Filter = 'all' | 'mine'
 
@@ -29,6 +31,7 @@ export default function AuctionsPage() {
   const { data: myParts } = useMyParticipations()
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
+  const { closed: asteChiuse } = useAsteWindow()
 
   const playerMap = useMemo(
     () => new Map((players ?? []).map((p) => [p.id, p])),
@@ -79,13 +82,21 @@ export default function AuctionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-white">Aste</h1>
-        <Link
-          to="/asta/giocatori"
-          className="rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
-        >
-          + Avvia asta
-        </Link>
+        {asteChiuse ? (
+          <span className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-slate-500">
+            🔒 Avvii chiusi
+          </span>
+        ) : (
+          <Link
+            to="/asta/giocatori"
+            className="rounded-lg bg-accent-strong px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          >
+            + Avvia asta
+          </Link>
+        )}
       </div>
+
+      <AsteWindowBanner />
 
       <input
         value={search}

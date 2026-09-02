@@ -1957,6 +1957,8 @@ export type Database = {
       admin_delete_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_pause_auction: { Args: { p_auction: number }; Returns: undefined }
       admin_resume_auction: { Args: { p_auction: number }; Returns: undefined }
+      aste_bloccate: { Args: never; Returns: boolean }
+      aste_chiusura_at: { Args: never; Returns: string }
       available_credits: { Args: { p_manager: string }; Returns: number }
       cancel_autobid: { Args: { p_auction: number }; Returns: undefined }
       claim_team: { Args: { p_team_name: string }; Returns: undefined }
