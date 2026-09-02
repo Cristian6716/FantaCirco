@@ -716,6 +716,67 @@ export type Database = {
           },
         ]
       }
+      mercato_annunci: {
+        Row: {
+          accetta_crediti: boolean
+          created_at: string
+          crediti_min: number | null
+          id: number
+          manager_id: string
+          nota: string | null
+          player_id: number
+          preferenza: string | null
+          ruoli: string[]
+          updated_at: string
+        }
+        Insert: {
+          accetta_crediti?: boolean
+          created_at?: string
+          crediti_min?: number | null
+          id?: never
+          manager_id: string
+          nota?: string | null
+          player_id: number
+          preferenza?: string | null
+          ruoli?: string[]
+          updated_at?: string
+        }
+        Update: {
+          accetta_crediti?: boolean
+          created_at?: string
+          crediti_min?: number | null
+          id?: never
+          manager_id?: string
+          nota?: string | null
+          player_id?: number
+          preferenza?: string | null
+          ruoli?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mercato_annunci_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mercato_annunci_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_manager_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mercato_annunci_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           manager_id: string

@@ -15,6 +15,8 @@ export const supabase = createClient<Database>(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    // Serve per magic link e recupero password: i token arrivano nell'hash
+    // dell'URL di redirect e vanno consumati all'avvio.
+    detectSessionInUrl: true,
   },
 })

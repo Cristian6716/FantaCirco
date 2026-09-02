@@ -8,6 +8,7 @@ import { useRivalitaRealtime } from '../lib/rivalita'
 import { useRankingRealtime } from '../lib/rankingQueries'
 import { useStatisticheRealtime } from '../lib/statisticheQueries'
 import { useScambiRealtime } from '../lib/scambi'
+import { useMercatoRealtime } from '../lib/mercato'
 import { useMegagalatticoRealtime } from '../lib/megagalattico'
 
 function CreditStat({ label, value, color }: { label: string; value: number | null | undefined; color: string }) {
@@ -151,6 +152,7 @@ const SECTIONS: Section[] = [
     items: [
       { to: '/asta/giocatori', label: 'Giocatori' },
       { to: '/asta/aste', label: 'Aste' },
+      { to: '/asta/mercato', label: 'Mercato' },
       { to: '/asta/archivio', label: 'Archivio' },
     ],
   },
@@ -286,6 +288,7 @@ export function Layout({ children }: { children: ReactNode }) {
   useRankingRealtime()
   useStatisticheRealtime()
   useScambiRealtime()
+  useMercatoRealtime()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (

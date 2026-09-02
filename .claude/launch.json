@@ -8,6 +8,12 @@
       "port": 5183
     },
     {
+      "name": "fanta-3000",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "3000", "--strictPort"],
+      "port": 3000
+    },
+    {
       "name": "fanta-prod",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview", "--", "--port", "4173"],

@@ -10,6 +10,7 @@ import HomePage from './pages/Home'
 import AuctionsPage from './pages/Auctions'
 import ArchivePage from './pages/Archive'
 import PlayersPage from './pages/Players'
+import MercatoPage from './pages/Mercato'
 import AuctionDetailPage from './pages/AuctionDetail'
 import PronosticaPage from './pages/pronostici/PronosticaPage'
 import ClassificaPage from './pages/pronostici/ClassificaPage'
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/asta/giocatori" element={<PlayersPage />} />
         <Route path="/asta/aste" element={<AuctionsPage />} />
         <Route path="/asta/aste/:id" element={<AuctionDetailPage />} />
+        <Route path="/asta/mercato" element={<MercatoPage />} />
         <Route path="/asta/archivio" element={<ArchivePage />} />
         <Route path="/pronostici" element={<Navigate to="/pronostici/pronostica" replace />} />
         <Route path="/pronostici/pronostica" element={<PronosticaPage />} />
