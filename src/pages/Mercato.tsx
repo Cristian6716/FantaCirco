@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useManagers, usePlayers, type Player } from '../lib/queries'
 import {
@@ -112,19 +112,22 @@ export default function MercatoPage() {
 
       {rows.length > 0 && (
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          {/* Griglia fissa, niente striscia scrollabile: su mobile le etichette
+              estese non ci stanno e la riga scorrerebbe sotto il dito. */}
+          <div className="grid grid-cols-5 gap-1.5">
             {(['all', 'P', 'D', 'C', 'A'] as RoleFilter[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRole(r)}
                 className={[
-                  'shrink-0 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium',
+                  'truncate rounded-lg border px-2 py-1.5 text-xs font-medium',
                   role === r
                     ? 'border-accent/60 bg-accent/15 text-accent'
                     : 'border-border bg-surface text-slate-400',
                 ].join(' ')}
               >
-                {r === 'all' ? 'Tutti' : MACRO_LABEL[r]}
+                <span className="lg:hidden">{r === 'all' ? 'Tutti' : r}</span>
+                <span className="hidden lg:inline">{r === 'all' ? 'Tutti' : MACRO_LABEL[r]}</span>
               </button>
             ))}
           </div>
@@ -315,6 +318,16 @@ function AnnuncioCard({
 }
 
 function ModalShell({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  // Con la modale aperta la pagina sotto non deve scorrere: su mobile lo
+  // scroll "passa" al fondo e sembra che la schermata si muova da sola.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
@@ -322,7 +335,9 @@ function ModalShell({ children, onClose }: { children: ReactNode; onClose: () =>
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-surface pb-safe shadow-2xl sm:rounded-2xl sm:pb-0"
+        // dvh e non vh: su mobile la barra del browser che compare e sparisce
+        // cambia l'altezza e il pannello salterebbe.
+        className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-surface pb-safe shadow-2xl sm:rounded-2xl sm:pb-0"
       >
         {children}
       </div>
