@@ -212,6 +212,8 @@ const defaultNotificationPrefs = {
   notify_outbid_phase1: true,
   notify_phase2_start: true,
   notify_outbid_phase2: true,
+  // Opt-in: chi vuole sapere dei nuovi annunci sul mercato la accende dal Profilo.
+  notify_mercato_annuncio: false,
 }
 
 export function useNotificationPreferences() {

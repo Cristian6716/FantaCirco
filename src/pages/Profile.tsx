@@ -175,6 +175,12 @@ function NotificationsCard() {
             label="Superato (seconde 24h)"
             hint="Quando qualcuno rilancia sopra la tua offerta nella fase 2."
           />
+          <NotificationToggleRow
+            field="notify_mercato_annuncio"
+            label="Nuovo giocatore sul mercato"
+            hint="Quando qualcuno mette in vetrina un giocatore scambiabile."
+            defaultValue={false}
+          />
         </div>
       )}
     </div>
@@ -232,15 +238,22 @@ function NotificationToggleRow({
   field,
   label,
   hint,
+  defaultValue = true,
 }: {
-  field: 'notify_outbid_phase1' | 'notify_phase2_start' | 'notify_outbid_phase2'
+  field:
+    | 'notify_outbid_phase1'
+    | 'notify_phase2_start'
+    | 'notify_outbid_phase2'
+    | 'notify_mercato_annuncio'
   label: string
   hint: string
+  /** Valore mostrato finche' non esiste una riga di preferenze per il manager. */
+  defaultValue?: boolean
 }) {
   const toast = useToast()
   const { data: prefs } = useNotificationPreferences()
   const setPref = useSetNotificationPreference()
-  const checked = prefs?.[field] ?? true
+  const checked = prefs?.[field] ?? defaultValue
 
   return (
     <NotificationRow

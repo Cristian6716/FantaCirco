@@ -780,6 +780,7 @@ export type Database = {
       notification_preferences: {
         Row: {
           manager_id: string
+          notify_mercato_annuncio: boolean
           notify_outbid_phase1: boolean
           notify_outbid_phase2: boolean
           notify_phase2_start: boolean
@@ -787,6 +788,7 @@ export type Database = {
         }
         Insert: {
           manager_id: string
+          notify_mercato_annuncio?: boolean
           notify_outbid_phase1?: boolean
           notify_outbid_phase2?: boolean
           notify_phase2_start?: boolean
@@ -794,6 +796,7 @@ export type Database = {
         }
         Update: {
           manager_id?: string
+          notify_mercato_annuncio?: boolean
           notify_outbid_phase1?: boolean
           notify_outbid_phase2?: boolean
           notify_phase2_start?: boolean
