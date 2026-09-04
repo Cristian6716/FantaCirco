@@ -411,18 +411,21 @@ export type Database = {
           chiusura_at: string | null
           created_at: string
           numero: number
+          promemoria_3h_at: string | null
           pronostici_chiusi: boolean
         }
         Insert: {
           chiusura_at?: string | null
           created_at?: string
           numero: number
+          promemoria_3h_at?: string | null
           pronostici_chiusi?: boolean
         }
         Update: {
           chiusura_at?: string | null
           created_at?: string
           numero?: number
+          promemoria_3h_at?: string | null
           pronostici_chiusi?: boolean
         }
         Relationships: []
@@ -784,6 +787,7 @@ export type Database = {
           notify_outbid_phase1: boolean
           notify_outbid_phase2: boolean
           notify_phase2_start: boolean
+          notify_promemoria_pronostici: boolean
           updated_at: string
         }
         Insert: {
@@ -792,6 +796,7 @@ export type Database = {
           notify_outbid_phase1?: boolean
           notify_outbid_phase2?: boolean
           notify_phase2_start?: boolean
+          notify_promemoria_pronostici?: boolean
           updated_at?: string
         }
         Update: {
@@ -800,6 +805,7 @@ export type Database = {
           notify_outbid_phase1?: boolean
           notify_outbid_phase2?: boolean
           notify_phase2_start?: boolean
+          notify_promemoria_pronostici?: boolean
           updated_at?: string
         }
         Relationships: [

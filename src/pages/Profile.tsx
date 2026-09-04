@@ -181,6 +181,11 @@ function NotificationsCard() {
             hint="Quando qualcuno mette in vetrina un giocatore scambiabile."
             defaultValue={false}
           />
+          <NotificationToggleRow
+            field="notify_promemoria_pronostici"
+            label="Promemoria pronostici"
+            hint="3 ore prima della chiusura: pronostici da mandare e formazione da mettere."
+          />
         </div>
       )}
     </div>
@@ -245,6 +250,7 @@ function NotificationToggleRow({
     | 'notify_phase2_start'
     | 'notify_outbid_phase2'
     | 'notify_mercato_annuncio'
+    | 'notify_promemoria_pronostici'
   label: string
   hint: string
   /** Valore mostrato finche' non esiste una riga di preferenze per il manager. */
