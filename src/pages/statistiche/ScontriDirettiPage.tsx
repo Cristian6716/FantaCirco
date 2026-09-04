@@ -4,7 +4,12 @@ import { useStatMatches } from '../../lib/statisticheQueries'
 import { allTeamsInMatches, calculateH2HBetween, calculateH2HForTeam, type H2HRow } from '../../lib/statisticheCalc'
 import { EmptyState } from '../../components/ui'
 
-const COMP_LABEL: Record<string, string> = { campionato: 'Camp.', coppa: 'Coppa' }
+const COMP_LABEL: Record<string, string> = {
+  campionato: 'Camp.',
+  svizzero: 'Svizzero',
+  girone: 'Girone',
+  coppa: 'Coppa',
+}
 
 function H2HTable({ rows, highlightTeam }: { rows: H2HRow[]; highlightTeam?: string }) {
   const [expanded, setExpanded] = useState<string | null>(null)

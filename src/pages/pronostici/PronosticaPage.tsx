@@ -127,6 +127,14 @@ export default function PronosticaPage() {
             </p>
           )}
 
+          <p className="rounded-lg border border-border bg-surface px-3 py-2 text-[11px] leading-relaxed text-slate-400">
+            <span className="font-semibold text-slate-200">Multigol 1-2</span> — il Si/No è la
+            scommessa sul totale gol della partita: <span className="font-semibold text-slate-200">Si</span>{' '}
+            se finisce con 1 o 2 gol complessivi,{' '}
+            <span className="font-semibold text-slate-200">No</span> con 0 gol o 3 e oltre. Esito 1X2
+            = 3 punti, Multigol 1-2 = 1 punto.
+          </p>
+
           <div className="space-y-2">
             {partiteGiornata.map((p) => (
               <PartitaCard

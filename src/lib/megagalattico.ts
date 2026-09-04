@@ -69,6 +69,11 @@ export interface SwissMatchResolved {
   draw: boolean
   /** Record V-P condiviso dalle due squadre all'inizio del turno, es. "1-0". */
   record: string
+  /** Record V-P della singola squadra a inizio turno: nei gruppi "galleggiati"
+   *  le due squadre possono non condividerlo, e i punti ranking dipendono da
+   *  quello di chi vince. */
+  recordA: { wins: number; losses: number }
+  recordB: { wins: number; losses: number }
 }
 
 export interface SwissResolution {
@@ -139,7 +144,9 @@ export function resolveSwissState(
 
       const stateA = states.get(manager_a)
       const stateB = states.get(manager_b)
-      const record = `${stateA?.wins ?? 0}-${stateA?.losses ?? 0}`
+      const recordA = { wins: stateA?.wins ?? 0, losses: stateA?.losses ?? 0 }
+      const recordB = { wins: stateB?.wins ?? 0, losses: stateB?.losses ?? 0 }
+      const record = `${recordA.wins}-${recordA.losses}`
 
       matches.push({
         turno,
@@ -153,6 +160,8 @@ export function resolveSwissState(
         winner,
         draw,
         record,
+        recordA,
+        recordB,
       })
 
       stateA?.opponents.add(manager_b)
@@ -382,6 +391,48 @@ export function resolveGironeStandings(
     r.pos = i + 1
   })
   return list
+}
+
+export interface GironeMatchResolved {
+  round: number
+  managerA: string
+  managerB: string
+  giornataReale: number | null
+  golA: number | null
+  golB: number | null
+}
+
+/**
+ * Match dei gironi con i gol già risolti dai punteggi fanta. resolveGironeStandings
+ * aggrega direttamente in classifica: questa espone invece il singolo risultato,
+ * che serve agli scontri diretti e alle rivalità.
+ */
+export function resolveGironeMatches(
+  partite: RoundRobinMatch[],
+  roundToGiornata: Map<number, number | null>,
+  scores: GiornateScores,
+  teamNameById: Map<string, string>,
+): GironeMatchResolved[] {
+  const out: GironeMatchResolved[] = []
+  for (const p of partite) {
+    const giornataReale = roundToGiornata.get(p.round) ?? null
+    const dayScores = giornataReale != null ? scores[String(giornataReale)] ?? {} : {}
+    const teamA = teamNameById.get(p.managerA)
+    const teamB = teamNameById.get(p.managerB)
+    const scoreA = teamA != null ? dayScores[teamA] : undefined
+    const scoreB = teamB != null ? dayScores[teamB] : undefined
+
+    let golA: number | null = null
+    let golB: number | null = null
+    if (scoreA != null && scoreB != null) {
+      const result = calculateMatchResult(scoreA, scoreB)
+      golA = result.golA
+      golB = result.golB
+    }
+
+    out.push({ round: p.round, managerA: p.managerA, managerB: p.managerB, giornataReale, golA, golB })
+  }
+  return out
 }
 
 // ============================================================================

@@ -1,22 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useManagers } from '../../lib/queries'
-import { buildGiornateScores, useOverrides, usePunteggiGiornata } from '../../lib/leagueQueries'
-import {
-  buildTeamNameMap,
-  resolveGironeStandings,
-  resolveSwissState,
-  splitToFasce,
-  useMegaAccoppiamenti,
-  useMegaGironiPartite,
-  useMegaTurni,
-  type GironeRow,
-  type RoundRobinMatch,
-} from '../../lib/megagalattico'
-import type { TorneoOverrideInput } from '../../lib/tornei'
+import { useMegaData } from '../../lib/megaData'
+import { splitToFasce, type GironeRow, type RoundRobinMatch } from '../../lib/megagalattico'
+import { buildRankingTorneo, PUNTI_GIRONE, type RankingTorneoRow } from '../../lib/rankingTorneo'
 import { EmptyState, PageLoader } from '../../components/ui'
 import SvizzeroBracket from './SvizzeroBracket'
 
-type SubTab = 'svizzero' | 'gironi' | 'fasce'
+type SubTab = 'svizzero' | 'gironi' | 'fasce' | 'ranking'
 
 export default function MegagalatticoPage() {
   const [tab, setTab] = useState<SubTab>('svizzero')
@@ -33,10 +22,14 @@ export default function MegagalatticoPage() {
         <SubTabBtn active={tab === 'fasce'} onClick={() => setTab('fasce')}>
           Fasce
         </SubTabBtn>
+        <SubTabBtn active={tab === 'ranking'} onClick={() => setTab('ranking')}>
+          Ranking
+        </SubTabBtn>
       </div>
       {tab === 'svizzero' && <SvizzeroBracket />}
       {tab === 'gironi' && <GironiView />}
       {tab === 'fasce' && <FasceView />}
+      {tab === 'ranking' && <RankingTorneoView />}
     </div>
   )
 }
@@ -61,82 +54,6 @@ function SubTabBtn({
       {children}
     </button>
   )
-}
-
-/** Dati condivisi da vista Gironi e vista Fasce: classifiche combinate svizzero+girone. */
-function useMegaData() {
-  const { data: managers } = useManagers()
-  const { data: punteggi } = usePunteggiGiornata()
-  const { data: overrides } = useOverrides()
-  const { data: megaTurni } = useMegaTurni()
-  const { data: accoppiamenti } = useMegaAccoppiamenti()
-  const { data: gironiPartite } = useMegaGironiPartite()
-
-  const squadre = useMemo(() => (managers ?? []).filter((m) => !!m.team_name), [managers])
-  const teamNameById = useMemo(() => buildTeamNameMap(squadre), [squadre])
-  const allIds = useMemo(() => squadre.map((m) => m.id), [squadre])
-
-  const scoresMap = useMemo(() => {
-    if (!managers || !punteggi) return {}
-    return buildGiornateScores(punteggi, managers)
-  }, [managers, punteggi])
-
-  const overrideMap = useMemo(() => {
-    const ovr: Record<string, TorneoOverrideInput> = {}
-    for (const o of overrides ?? []) ovr[o.match_id] = { winner: o.winner as 'A' | 'B', golA: o.gol_a, golB: o.gol_b }
-    return ovr
-  }, [overrides])
-
-  const turniSvizzero = useMemo(() => {
-    const m = new Map<number, number | null>()
-    for (const t of megaTurni ?? []) if (t.step_type === 'svizzero') m.set(t.step_numero, t.giornata_reale)
-    return m
-  }, [megaTurni])
-
-  const turniGironi = useMemo(() => {
-    const m = new Map<number, number | null>()
-    for (const t of megaTurni ?? []) if (t.step_type === 'gironi') m.set(t.step_numero, t.giornata_reale)
-    return m
-  }, [megaTurni])
-
-  const swiss = useMemo(() => {
-    if (allIds.length === 0) return null
-    return resolveSwissState(accoppiamenti ?? [], turniSvizzero, scoresMap, teamNameById, overrideMap, allIds)
-  }, [accoppiamenti, turniSvizzero, scoresMap, teamNameById, overrideMap, allIds])
-
-  const swissRecordsMap = useMemo(() => {
-    const m = new Map<string, { wins: number; losses: number }>()
-    for (const s of swiss?.states.values() ?? []) m.set(s.managerId, { wins: s.wins, losses: s.losses })
-    return m
-  }, [swiss])
-
-  const partiteA = useMemo(
-    () =>
-      (gironiPartite ?? [])
-        .filter((p) => p.girone === 'A')
-        .map((p): RoundRobinMatch => ({ round: p.round, managerA: p.manager_a, managerB: p.manager_b })),
-    [gironiPartite],
-  )
-  const partiteB = useMemo(
-    () =>
-      (gironiPartite ?? [])
-        .filter((p) => p.girone === 'B')
-        .map((p): RoundRobinMatch => ({ round: p.round, managerA: p.manager_a, managerB: p.manager_b })),
-    [gironiPartite],
-  )
-  const idsA = useMemo(() => [...new Set(partiteA.flatMap((p) => [p.managerA, p.managerB]))], [partiteA])
-  const idsB = useMemo(() => [...new Set(partiteB.flatMap((p) => [p.managerA, p.managerB]))], [partiteB])
-
-  const classificaA = useMemo(
-    () => resolveGironeStandings(idsA, swissRecordsMap, partiteA, turniGironi, scoresMap, teamNameById),
-    [idsA, swissRecordsMap, partiteA, turniGironi, scoresMap, teamNameById],
-  )
-  const classificaB = useMemo(
-    () => resolveGironeStandings(idsB, swissRecordsMap, partiteB, turniGironi, scoresMap, teamNameById),
-    [idsB, swissRecordsMap, partiteB, turniGironi, scoresMap, teamNameById],
-  )
-
-  return { managers, teamNameById, gironiPartite, classificaA, classificaB, partiteA, partiteB, turniGironi, scoresMap }
 }
 
 function GironiView() {
@@ -220,6 +137,113 @@ function FasceView() {
         </div>
       ))}
     </div>
+  )
+}
+
+function RankingTorneoView() {
+  const { managers, teamNameById, allIds, swiss, classificaA, classificaB } = useMegaData()
+
+  const righe = useMemo(
+    () => buildRankingTorneo(swiss?.matches ?? [], classificaA, classificaB, allIds),
+    [swiss, classificaA, classificaB, allIds],
+  )
+
+  if (!managers) return <PageLoader />
+  if (righe.length === 0 || righe.every((r) => r.totale === 0)) {
+    return (
+      <EmptyState
+        icon="📊"
+        title="Nessun punto ancora assegnato"
+        hint="I punti ranking maturano dal primo turno dello svizzero in poi."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto rounded-xl border border-border">
+        <table className="w-full min-w-[22rem] text-sm">
+          <thead>
+            <tr className="bg-surface-2 text-xs uppercase tracking-wide text-slate-400">
+              <th className="px-2 py-2 text-left font-medium">Squadra</th>
+              <th className="px-2 py-2 text-center font-medium">Sv.</th>
+              <th className="px-2 py-2 text-center font-medium">Gir.</th>
+              <th className="px-2 py-2 text-right font-medium">Tot</th>
+            </tr>
+          </thead>
+          <tbody>
+            {righe.map((r) => (
+              <RankingTorneoRowView key={r.managerId} row={r} teamNameById={teamNameById} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <h3 className="text-sm font-semibold text-white">Come si assegnano i punti</h3>
+
+        <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Svizzero — per vittoria
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          Dipende dal record V-P che il vincitore aveva <span className="font-medium text-slate-300">prima</span> della
+          partita: più sei avanti, più la vittoria pesa. Chi perde non prende punti.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          <PuntiChip record="2-0 · 2-1" punti={5} nota="+2 / +1" />
+          <PuntiChip record="1-0" punti={3} nota="+1" />
+          <PuntiChip record="0-0 · 1-1 · 2-2" punti={2} nota="pari" />
+          <PuntiChip record="0-1 · 1-2 · 0-2" punti={1} nota="sotto" />
+        </div>
+
+        <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Gironi — per partita
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          Il Girone A (record svizzero positivo) vale il doppio del Girone B: vittoria{' '}
+          <span className="font-medium text-slate-300">{PUNTI_GIRONE.A.vittoria} pt</span> e pareggio{' '}
+          <span className="font-medium text-slate-300">{PUNTI_GIRONE.A.pareggio} pt</span> in A, vittoria{' '}
+          <span className="font-medium text-slate-300">{PUNTI_GIRONE.B.vittoria} pt</span> e pareggio{' '}
+          <span className="font-medium text-slate-300">{PUNTI_GIRONE.B.pareggio} pt</span> in B.
+        </p>
+
+        <p className="mt-3 text-xs leading-relaxed text-slate-500">
+          I punti della fase a eliminazione non sono ancora stati definiti, quindi non compaiono in questa tabella.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function PuntiChip({ record, punti, nota }: { record: string; punti: number; nota: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 px-2 py-1.5">
+      <p className="text-xs font-semibold text-white">{record}</p>
+      <p className="mt-0.5 text-sm font-bold text-accent">{punti} pt</p>
+      <p className="text-[10px] text-slate-500">{nota}</p>
+    </div>
+  )
+}
+
+function RankingTorneoRowView({
+  row,
+  teamNameById,
+}: {
+  row: RankingTorneoRow
+  teamNameById: Map<string, string>
+}) {
+  return (
+    <tr className="border-t border-border bg-surface">
+      <td className="px-2 py-2">
+        <span className="font-medium text-white">
+          {row.pos}. {teamNameById.get(row.managerId) ?? row.managerId}
+        </span>
+        {row.gironeLabel && <span className="ml-1.5 text-xs text-slate-500">Gir. {row.gironeLabel}</span>}
+      </td>
+      <td className="px-2 py-2 text-center text-slate-300">{row.svizzero}</td>
+      <td className="px-2 py-2 text-center text-slate-300">{row.girone}</td>
+      <td className="px-2 py-2 text-right font-bold text-accent">{row.totale}</td>
+    </tr>
   )
 }
 

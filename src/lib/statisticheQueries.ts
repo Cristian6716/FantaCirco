@@ -8,6 +8,7 @@ import { useManagers } from './queries'
 import { resolveTournament, type TorneoOverrideInput } from './tornei'
 import { initialMatches } from './torneoData'
 import { STAGIONE_CORRENTE, type StatMatch } from './statisticheCalc'
+import { useMegaData } from './megaData'
 
 export type StoricoPartita = Tables<'storico_partite'>
 export type AlboOroRow = Tables<'albo_oro'>
@@ -194,6 +195,7 @@ export function useStatMatches() {
   const { data: managers } = useManagers()
   const { data: punteggi } = usePunteggiGiornata()
   const { data: overrides } = useOverrides()
+  const { teamNameById, swiss, matchesA, matchesB } = useMegaData()
 
   return useMemo((): StatMatch[] => {
     const out: StatMatch[] = []
@@ -251,6 +253,42 @@ export function useStatMatches() {
       }
     }
 
+    for (const m of swiss?.matches ?? []) {
+      if (m.golA == null || m.golB == null || m.giornataReale == null) continue
+      const casa = teamNameById.get(m.managerA)
+      const trasferta = teamNameById.get(m.managerB)
+      if (!casa || !trasferta) continue
+      out.push({
+        stagione: STAGIONE_CORRENTE,
+        competizione: 'svizzero',
+        giornata: m.giornataReale,
+        casa,
+        trasferta,
+        golCasa: m.golA,
+        golTrasferta: m.golB,
+        puntiCasa: scores[String(m.giornataReale)]?.[casa] ?? null,
+        puntiTrasferta: scores[String(m.giornataReale)]?.[trasferta] ?? null,
+      })
+    }
+
+    for (const m of [...matchesA, ...matchesB]) {
+      if (m.golA == null || m.golB == null || m.giornataReale == null) continue
+      const casa = teamNameById.get(m.managerA)
+      const trasferta = teamNameById.get(m.managerB)
+      if (!casa || !trasferta) continue
+      out.push({
+        stagione: STAGIONE_CORRENTE,
+        competizione: 'girone',
+        giornata: m.giornataReale,
+        casa,
+        trasferta,
+        golCasa: m.golA,
+        golTrasferta: m.golB,
+        puntiCasa: scores[String(m.giornataReale)]?.[casa] ?? null,
+        puntiTrasferta: scores[String(m.giornataReale)]?.[trasferta] ?? null,
+      })
+    }
+
     return out
-  }, [partite, storico, managers, punteggi, overrides])
+  }, [partite, storico, managers, punteggi, overrides, teamNameById, swiss, matchesA, matchesB])
 }

@@ -1,5 +1,5 @@
 import type { Partita } from '../../lib/leagueQueries'
-import { calcolaRisultati, ouOptions, puntiPronostico } from '../../lib/pronostici'
+import { calcolaRisultati, ouLabel, ouOptions, puntiPronostico } from '../../lib/pronostici'
 
 export function GiornataPicker({
   giornate,
@@ -68,7 +68,11 @@ export function PartitaCard({
         <span className="min-w-0 flex-1 truncate font-medium text-white">{partita.trasferta}</span>
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        Esito 1X2 <span className="text-slate-500">· 3 pt</span>
+      </p>
+
+      <div className="mt-1 grid grid-cols-3 gap-1.5">
         {(['1', 'X', '2'] as const).map((v) => (
           <Chip
             key={v}
@@ -82,7 +86,11 @@ export function PartitaCard({
         ))}
       </div>
 
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+      <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        {ouLabel()} <span className="text-slate-500">· 1 pt</span>
+      </p>
+
+      <div className="mt-1 grid grid-cols-2 gap-1.5">
         {ou.map((v) => (
           <Chip
             key={v}

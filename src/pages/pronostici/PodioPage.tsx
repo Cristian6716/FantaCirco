@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import { useManagers } from '../../lib/queries'
 import {
   podioRoundChiuso,
-  useLatestPodioRound,
   useMyPodioVote,
   usePodioClassifica,
+  usePodioRounds,
   useSubmitPodioVote,
   type PodioClassificaRow,
+  type PodioRound,
   type PodioVote,
 } from '../../lib/podio'
 import { useOraCorrente } from '../../lib/leagueQueries'
@@ -15,7 +16,15 @@ import { EmptyState, PageLoader, Spinner } from '../../components/ui'
 import { useToast } from '../../components/Toast'
 
 export default function PodioPage() {
-  const round = useLatestPodioRound()
+  const { data: rounds, isLoading: rLoading } = usePodioRounds()
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  // Di default l'ultima tornata (rounds è ordinato per numero decrescente); le
+  // precedenti restano consultabili dal selettore.
+  const round = useMemo(
+    () => rounds?.find((r) => r.id === selectedId) ?? rounds?.[0],
+    [rounds, selectedId],
+  )
+
   const { data: managers, isLoading: mLoading } = useManagers()
   const { data: myVote, isLoading: vLoading } = useMyPodioVote(round?.id)
   const [editing, setEditing] = useState(false)
@@ -37,7 +46,7 @@ export default function PodioPage() {
     return m ? m.team_name || m.display_name : '—'
   }
 
-  if (mLoading || vLoading) return <PageLoader />
+  if (rLoading || mLoading || vLoading) return <PageLoader />
 
   const showForm = !!round && !chiuso && (!myVote || editing)
   const deadline = !chiuso && round?.chiusura_at ? round.chiusura_at : null
@@ -45,6 +54,18 @@ export default function PodioPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-white">Podio</h1>
+
+      {rounds && rounds.length > 1 && round && (
+        <TornataPicker
+          rounds={rounds}
+          currentId={round.id}
+          ora={ora}
+          onChange={(id) => {
+            setSelectedId(id)
+            setEditing(false)
+          }}
+        />
+      )}
 
       {!round ? (
         <EmptyState
@@ -79,6 +100,55 @@ export default function PodioPage() {
           </>
         )
       )}
+    </div>
+  )
+}
+
+/**
+ * Selettore delle tornate: di default si apre sull'ultima, ma i podi delle
+ * precedenti restano raggiungibili. Compare solo da due tornate in su.
+ */
+function TornataPicker({
+  rounds,
+  currentId,
+  ora,
+  onChange,
+}: {
+  rounds: PodioRound[]
+  currentId: number
+  ora: number
+  onChange: (id: number) => void
+}) {
+  // Dalla più vecchia alla più recente: si legge come una linea temporale.
+  const ordinate = [...rounds].sort((a, b) => a.numero - b.numero)
+  return (
+    <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 text-sm">
+      {ordinate.map((r) => {
+        const attiva = r.id === currentId
+        const aperta = !podioRoundChiuso(r, ora)
+        return (
+          <button
+            key={r.id}
+            onClick={() => onChange(r.id)}
+            className={[
+              'flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 font-medium transition-colors',
+              attiva ? 'bg-accent-strong text-white' : 'text-slate-400',
+            ].join(' ')}
+          >
+            <span>Tornata {r.numero}</span>
+            {aperta && (
+              <span
+                className={[
+                  'rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                  attiva ? 'bg-white/20 text-white' : 'bg-accent/15 text-accent',
+                ].join(' ')}
+              >
+                in corso
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

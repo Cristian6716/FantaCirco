@@ -32,15 +32,6 @@ export function useOpenPodioRound(): PodioRound | undefined {
 }
 
 /**
- * Il round più recente, aperto o chiuso: a votazione finita la pagina deve
- * continuare a mostrarlo per il podio finale.
- */
-export function useLatestPodioRound(): PodioRound | undefined {
-  const { data } = usePodioRounds()
-  return data?.[0]
-}
-
-/**
  * Un round è chiuso se l'admin l'ha chiuso oppure se è passata la deadline di
  * chiusura automatica. Stessa regola di podio_round_chiuso() lato server.
  */
@@ -181,6 +172,48 @@ export function useAdminSetPodioChiusuraAt() {
         .from('podio_rounds')
         .update({ chiusura_at: input.chiusura_at })
         .eq('id', input.roundId)
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['podio_rounds'] })
+      qc.invalidateQueries({ queryKey: ['podio_votes'] })
+    },
+  })
+}
+
+/**
+ * Riapre un round chiuso mantenendo i voti già espressi: serve quando la
+ * votazione è stata chiusa per sbaglio o solo per dare un'occhiata al podio.
+ * Una deadline già scaduta lo richiuderebbe all'istante, quindi va azzerata;
+ * una ancora futura si conserva.
+ */
+export function useAdminReopenPodioRound() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (roundId: number) => {
+      const { data: altri, error: fetchErr } = await supabase
+        .from('podio_rounds')
+        .select('id, numero, status, chiusura_at')
+      if (fetchErr) throw new Error(fetchErr.message)
+
+      const round = (altri ?? []).find((r) => r.id === roundId)
+      if (!round) throw new Error('Votazione non trovata')
+
+      // Due round aperti insieme romperebbero la vista pubblica, che ne assume uno solo.
+      const giaAperto = (altri ?? []).find((r) => r.id !== roundId && r.status === 'open')
+      if (giaAperto) throw new Error(`La votazione ${giaAperto.numero} è già aperta: chiudila prima.`)
+
+      const scaduta =
+        round.chiusura_at != null && Date.now() >= new Date(round.chiusura_at).getTime()
+
+      const { error } = await supabase
+        .from('podio_rounds')
+        .update({
+          status: 'open',
+          closed_at: null,
+          ...(scaduta ? { chiusura_at: null } : {}),
+        })
+        .eq('id', roundId)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => {

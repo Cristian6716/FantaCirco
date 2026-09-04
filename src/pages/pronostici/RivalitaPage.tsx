@@ -15,6 +15,8 @@ import {
   type RivalitaStato,
 } from '../../lib/rivalita'
 import { TEAM_NAMES } from '../../lib/teams'
+import { useStatMatches } from '../../lib/statisticheQueries'
+import { calculateH2HBetween, type H2HMatchDetail } from '../../lib/statisticheCalc'
 import { countdown, formatDateTime } from '../../lib/format'
 import { EmptyState, PageLoader } from '../../components/ui'
 import { useToast } from '../../components/Toast'
@@ -36,6 +38,10 @@ export default function RivalitaPage() {
     [partite],
   )
   const finito = useMemo(() => (partite ? campionatoFinito(partite) : false), [partite])
+
+  // Elenco unificato (campionato, storico, svizzero, gironi, coppa): risolto una
+  // volta qui e passato alle card, così ogni duello non lo ricostruisce da capo.
+  const statMatches = useStatMatches()
 
   if (isLoading || !partite) return <PageLoader />
 
@@ -78,6 +84,7 @@ export default function RivalitaPage() {
               voti={riepilogo?.find((x) => x.rivalitaId === r.id) ?? null}
               chiuse={chiuse}
               finito={finito}
+              precedenti={calculateH2HBetween(statMatches, r.team_a, r.team_b)}
             />
           ))}
         </div>
@@ -93,6 +100,7 @@ function RivalitaCard({
   voti,
   chiuse,
   finito,
+  precedenti,
 }: {
   rivalita: Rivalita
   stato: RivalitaStato
@@ -100,11 +108,13 @@ function RivalitaCard({
   voti: { votiA: number; votiB: number } | null
   chiuse: boolean
   finito: boolean
+  precedenti: H2HMatchDetail[]
 }) {
   const { manager } = useAuth()
   const toast = useToast()
   const submit = useSubmitRivalitaVote()
   const [apriAndamento, setApriAndamento] = useState(false)
+  const [apriPrecedenti, setApriPrecedenti] = useState(false)
 
   const mioTeam = manager?.team_name || manager?.display_name
   const coinvolto = mioTeam === rivalita.team_a || mioTeam === rivalita.team_b
@@ -208,6 +218,76 @@ function RivalitaCard({
             team_b={rivalita.team_b}
           />
         )}
+
+        <button
+          onClick={() => setApriPrecedenti((v) => !v)}
+          className="flex w-full items-center justify-between rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-slate-300"
+        >
+          <span>
+            Scontri diretti
+            {precedenti.length > 0 && (
+              <span className="ml-1.5 text-slate-500">({precedenti.length})</span>
+            )}
+          </span>
+          <span className={`transition-transform ${apriPrecedenti ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        {apriPrecedenti && <Precedenti precedenti={precedenti} teamA={rivalita.team_a} />}
+      </div>
+    </div>
+  )
+}
+
+const COMP_LABEL: Record<string, string> = {
+  campionato: 'Camp.',
+  svizzero: 'Svizzero',
+  girone: 'Girone',
+  coppa: 'Coppa',
+}
+
+/**
+ * Precedenti fra le due rivali in tutte le competizioni (campionato, storico e
+ * torneo). Non incidono su chi vince il duello — quello resta la posizione
+ * finale in campionato — ma dicono chi ha avuto la meglio sul campo.
+ */
+function Precedenti({ precedenti, teamA }: { precedenti: H2HMatchDetail[]; teamA: string }) {
+  if (precedenti.length === 0) {
+    return (
+      <p className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-[11px] text-slate-400">
+        Non si sono ancora affrontate.
+      </p>
+    )
+  }
+
+  const vinteA = precedenti.filter((m) => m.esito === 'V').length
+  const pari = precedenti.filter((m) => m.esito === 'N').length
+  const vinteB = precedenti.filter((m) => m.esito === 'P').length
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-border bg-surface-2 p-2.5">
+      <p className="text-[11px] text-slate-400">
+        <span className="font-semibold text-white">{vinteA}</span> vittorie {teamA} ·{' '}
+        <span className="font-semibold text-white">{pari}</span> pari ·{' '}
+        <span className="font-semibold text-white">{vinteB}</span> dell&apos;altra
+      </p>
+      <div className="space-y-1">
+        {precedenti.map((m, i) => (
+          <div
+            key={`${m.stagione}-${m.competizione}-${m.giornata}-${i}`}
+            className="flex items-center justify-between gap-2 text-[11px]"
+          >
+            <span className="truncate text-slate-500">
+              {COMP_LABEL[m.competizione] ?? m.competizione} · {m.stagione} · G{m.giornata}
+            </span>
+            <span
+              className={[
+                'shrink-0 font-semibold',
+                m.esito === 'V' ? 'text-emerald-300' : m.esito === 'P' ? 'text-rose-300' : 'text-slate-300',
+              ].join(' ')}
+            >
+              {m.gf}-{m.gs}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )

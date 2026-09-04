@@ -69,6 +69,7 @@ import {
 import {
   computePodioClassifica,
   useAdminClosePodioRound,
+  useAdminReopenPodioRound,
   useAdminPodioVotes,
   useAdminStartPodioRound,
   usePodioRounds,
@@ -1351,6 +1352,7 @@ function PodioTab() {
   const confirm = useConfirm()
   const startRound = useAdminStartPodioRound()
   const closeRound = useAdminClosePodioRound()
+  const reopenRound = useAdminReopenPodioRound()
   const setPodioChiusuraAt = useAdminSetPodioChiusuraAt()
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -1407,6 +1409,22 @@ function PodioTab() {
     }
   }
 
+  async function onReopen(roundId: number) {
+    const ok = await confirm({
+      title: 'Riaprire la votazione?',
+      message:
+        'Gli utenti potranno di nuovo votare e modificare il voto. I voti già espressi restano. Se era impostata una chiusura automatica ormai passata viene rimossa.',
+      confirmLabel: 'Riapri',
+    })
+    if (!ok) return
+    try {
+      await reopenRound.mutateAsync(roundId)
+      toast.success('Votazione riaperta')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore')
+    }
+  }
+
   async function salvaChiusuraPodio(value: string) {
     if (!current) return
     try {
@@ -1457,13 +1475,25 @@ function PodioTab() {
 
       {current && (
         <>
-          {!currentChiuso && (
+          {!currentChiuso ? (
             <button
               onClick={() => onClose(current.id)}
               className="w-full rounded-lg border border-amber-500/50 bg-amber-500/10 py-2 text-sm font-semibold text-amber-200"
             >
               Chiudi votazione {current.numero}
             </button>
+          ) : (
+            // Solo sull'ultima: riaprirne una vecchia lascerebbe la vista
+            // pubblica, che mostra la più recente, su un'altra votazione.
+            current.id === rounds?.[0]?.id && (
+              <button
+                onClick={() => void onReopen(current.id)}
+                disabled={reopenRound.isPending}
+                className="w-full rounded-lg border border-emerald-500/50 bg-emerald-500/10 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50"
+              >
+                Riapri votazione {current.numero}
+              </button>
+            )
           )}
 
           <div className="rounded-xl border border-border bg-surface p-3">

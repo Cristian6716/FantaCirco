@@ -144,18 +144,6 @@ function DrawerSection({
 }
 
 const SECTIONS: Section[] = [
-  { key: 'rose', label: 'Rose', icon: '🏠', to: '/' },
-  {
-    key: 'asta',
-    label: 'Asta',
-    icon: '🔨',
-    items: [
-      { to: '/asta/giocatori', label: 'Giocatori' },
-      { to: '/asta/aste', label: 'Aste' },
-      { to: '/asta/mercato', label: 'Mercato' },
-      { to: '/asta/archivio', label: 'Archivio' },
-    ],
-  },
   {
     key: 'pronostici',
     label: 'Pronostici',
@@ -176,6 +164,18 @@ const SECTIONS: Section[] = [
       { to: '/competizioni/campionato', label: 'Campionato' },
       { to: '/competizioni/battle-royale', label: 'Battle Royale' },
       { to: '/competizioni/megagalattico', label: 'Torneo Megagalattico' },
+    ],
+  },
+  { key: 'rose', label: 'Rose', icon: '🏠', to: '/' },
+  {
+    key: 'asta',
+    label: 'Asta',
+    icon: '🔨',
+    items: [
+      { to: '/asta/giocatori', label: 'Giocatori' },
+      { to: '/asta/aste', label: 'Aste' },
+      { to: '/asta/mercato', label: 'Mercato' },
+      { to: '/asta/archivio', label: 'Archivio' },
     ],
   },
   {

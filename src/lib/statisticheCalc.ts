@@ -1,13 +1,17 @@
 // Logica pura della sezione Statistiche: unifica le fonti di partite
-// (campionato corrente + storico stagioni passate + bracket Coppa risolto),
-// calcola i record da "statistiche campionato" e gli scontri diretti (H2H).
+// (campionato corrente + storico stagioni passate + torneo: svizzero, gironi e
+// bracket Coppa), calcola i record da "statistiche campionato" e gli scontri
+// diretti (H2H).
 import { calculateCampionatoStandings } from './tornei'
 
 export const STAGIONE_CORRENTE = 'Stagione corrente'
 
+/** Competizione di provenienza di una partita nelle statistiche unificate. */
+export type Competizione = 'campionato' | 'svizzero' | 'girone' | 'coppa'
+
 export interface StatMatch {
   stagione: string
-  competizione: 'campionato' | 'coppa'
+  competizione: Competizione
   giornata: number
   casa: string
   trasferta: string
@@ -250,7 +254,7 @@ export function calculateCampionatoRecords(allMatches: StatMatch[]): CampionatoR
 
 export interface H2HMatchDetail {
   stagione: string
-  competizione: 'campionato' | 'coppa'
+  competizione: Competizione
   giornata: number
   team: string
   opponent: string
@@ -301,7 +305,12 @@ export function calculateH2HBetween(matches: StatMatch[], teamA: string, teamB: 
   const rows = calculateH2HForTeam(matches, teamA)
   const row = rows.find((r) => r.opponent === teamB)
   if (!row) return []
-  return [...row.matches].sort((a, b) => a.giornata - b.giornata)
+  // Nella stagione corrente la stessa giornata porta sia la partita di
+  // campionato sia quella di torneo: la competizione fa da spareggio, altrimenti
+  // l'ordine di due partite con lo stesso numero di giornata sarebbe arbitrario.
+  return [...row.matches].sort(
+    (a, b) => a.giornata - b.giornata || a.competizione.localeCompare(b.competizione),
+  )
 }
 
 export function allTeamsInMatches(matches: StatMatch[]): string[] {
