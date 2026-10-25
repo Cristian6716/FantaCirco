@@ -14,11 +14,18 @@ export default function RankingPage() {
 
   // Punti maturati nella stagione in corso: vengono solo dal torneo, e restano
   // a zero finché non si gioca il primo turno.
-  const { teamNameById, allIds, swiss, classificaA, classificaB } = useMegaData()
+  const { teamNameById, managerIdByTeam, coppaMatches, allIds, swiss, classificaA, classificaB } = useMegaData()
   const { data: megaTurni } = useMegaTurni()
 
   const puntiStagione = useMemo(() => {
-    const righe = buildRankingTorneo(swiss?.matches ?? [], classificaA, classificaB, allIds)
+    const righe = buildRankingTorneo(
+      swiss?.matches ?? [],
+      classificaA,
+      classificaB,
+      allIds,
+      coppaMatches,
+      managerIdByTeam,
+    )
     const perManager = new Map<string, number>()
     const perSquadra = new Map<string, number>()
     for (const r of righe) {
@@ -27,7 +34,7 @@ export default function RankingPage() {
       if (team) perSquadra.set(team, r.totale)
     }
     return { perManager, perSquadra }
-  }, [swiss, classificaA, classificaB, allIds, teamNameById])
+  }, [swiss, classificaA, classificaB, allIds, coppaMatches, managerIdByTeam, teamNameById])
 
   // Le squadre dello scorso anno senza manager attuale non hanno punti nuovi:
   // il join passa dal manager e ripiega sul nome squadra.
@@ -295,7 +302,10 @@ function RulesModal({ onClose }: { onClose: () => void }) {
               che il vincitore aveva prima della partita: 5 pt a 2-0, 3 pt a 1-0 e 2-1, 2 pt con record pari (0-0,
               1-1, 2-2), 1 pt con record negativo (0-1, 1-2, 0-2). Nei{' '}
               <span className="font-medium text-slate-300">gironi</span> il Girone A dà 4 pt a vittoria e 2 a
-              pareggio, il Girone B 2 e 1. I punti della fase a eliminazione non sono ancora stati decisi.
+              pareggio, il Girone B 2 e 1. Nella{' '}
+              <span className="font-medium text-slate-300">fase a eliminazione</span> ogni vittoria vale 6 pt in
+              upper, 3 pt in mid e 1 pt in lower; nelle finali la Semifinale e la Finalissima valgono 6 pt, l&apos;Upper
+              Final 6 pt e la Lower Final 3 pt.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               Sono tenuti separati dal totale: quello resta il ranking chiuso dello scorso anno.

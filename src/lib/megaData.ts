@@ -16,7 +16,8 @@ import {
   useMegaTurni,
   type RoundRobinMatch,
 } from './megagalattico'
-import type { TorneoOverrideInput } from './tornei'
+import { resolveTournament, type TorneoOverrideInput } from './tornei'
+import { initialMatches } from './torneoData'
 
 /** Dati condivisi dalle viste del torneo: classifiche combinate svizzero+girone. */
 export function useMegaData() {
@@ -100,9 +101,25 @@ export function useMegaData() {
     [idsB, swissRecordsMap, partiteB, turniGironi, scoresMap, teamNameById],
   )
 
+  // Coppa: il bracket si risolve dagli stessi punteggi, e serve al ranking per
+  // i punti della fase a eliminazione. I match riferiscono le squadre per
+  // team_name, da qui la mappa inversa.
+  const managerIdByTeam = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const [id, name] of teamNameById) m.set(name, id)
+    return m
+  }, [teamNameById])
+
+  const coppaMatches = useMemo(
+    () => resolveTournament(initialMatches, scoresMap, overrideMap),
+    [scoresMap, overrideMap],
+  )
+
   return {
     managers,
     teamNameById,
+    managerIdByTeam,
+    coppaMatches,
     allIds,
     gironiPartite,
     swiss,

@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useMegaData } from '../../lib/megaData'
 import { splitToFasce, type GironeRow, type RoundRobinMatch } from '../../lib/megagalattico'
-import { buildRankingTorneo, PUNTI_GIRONE, type RankingTorneoRow } from '../../lib/rankingTorneo'
+import {
+  buildRankingTorneo,
+  PUNTI_ELIMINAZIONE,
+  PUNTI_FINALS,
+  PUNTI_GIRONE,
+  type RankingTorneoRow,
+} from '../../lib/rankingTorneo'
 import { EmptyState, PageLoader } from '../../components/ui'
 import SvizzeroBracket from './SvizzeroBracket'
+import GironeCalendario from './GironeCalendario'
+import { useAuth } from '../../auth/AuthProvider'
 
 type SubTab = 'svizzero' | 'gironi' | 'fasce' | 'ranking'
 
@@ -57,7 +65,9 @@ function SubTabBtn({
 }
 
 function GironiView() {
-  const { managers, teamNameById, gironiPartite, classificaA, classificaB } = useMegaData()
+  const { managers, teamNameById, gironiPartite, classificaA, classificaB, matchesA, matchesB, scoresMap } =
+    useMegaData()
+  const { isAdmin } = useAuth()
   if (!managers) return <PageLoader />
   if (!gironiPartite || gironiPartite.length === 0) {
     return (
@@ -69,9 +79,15 @@ function GironiView() {
     )
   }
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <PublicGironeTable title="Girone A" classifica={classificaA} teamNameById={teamNameById} />
-      <PublicGironeTable title="Girone B" classifica={classificaB} teamNameById={teamNameById} />
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <PublicGironeTable title="Girone A" classifica={classificaA} teamNameById={teamNameById} />
+        <PublicGironeTable title="Girone B" classifica={classificaB} teamNameById={teamNameById} />
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <GironeCalendario title="Girone A" matches={matchesA} teamNameById={teamNameById} scoresMap={scoresMap} isAdmin={isAdmin} />
+        <GironeCalendario title="Girone B" matches={matchesB} teamNameById={teamNameById} scoresMap={scoresMap} isAdmin={isAdmin} />
+      </div>
     </div>
   )
 }
@@ -141,11 +157,12 @@ function FasceView() {
 }
 
 function RankingTorneoView() {
-  const { managers, teamNameById, allIds, swiss, classificaA, classificaB } = useMegaData()
+  const { managers, teamNameById, managerIdByTeam, coppaMatches, allIds, swiss, classificaA, classificaB } =
+    useMegaData()
 
   const righe = useMemo(
-    () => buildRankingTorneo(swiss?.matches ?? [], classificaA, classificaB, allIds),
-    [swiss, classificaA, classificaB, allIds],
+    () => buildRankingTorneo(swiss?.matches ?? [], classificaA, classificaB, allIds, coppaMatches, managerIdByTeam),
+    [swiss, classificaA, classificaB, allIds, coppaMatches, managerIdByTeam],
   )
 
   if (!managers) return <PageLoader />
@@ -168,6 +185,7 @@ function RankingTorneoView() {
               <th className="px-2 py-2 text-left font-medium">Squadra</th>
               <th className="px-2 py-2 text-center font-medium">Sv.</th>
               <th className="px-2 py-2 text-center font-medium">Gir.</th>
+              <th className="px-2 py-2 text-center font-medium">Elim.</th>
               <th className="px-2 py-2 text-right font-medium">Tot</th>
             </tr>
           </thead>
@@ -207,8 +225,21 @@ function RankingTorneoView() {
           <span className="font-medium text-slate-300">{PUNTI_GIRONE.B.pareggio} pt</span> in B.
         </p>
 
-        <p className="mt-3 text-xs leading-relaxed text-slate-500">
-          I punti della fase a eliminazione non sono ancora stati definiti, quindi non compaiono in questa tabella.
+        <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          Eliminazione — per vittoria
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          Ogni vittoria in Coppa pesa in base al bracket in cui arriva. Chi perde non prende punti.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          <PuntiChip record="Upper" punti={PUNTI_ELIMINAZIONE.upper} nota="alto" />
+          <PuntiChip record="Mid" punti={PUNTI_ELIMINAZIONE.mid} nota="medio" />
+          <PuntiChip record="Lower" punti={PUNTI_ELIMINAZIONE.lower} nota="basso" />
+          <PuntiChip record="Semifinale" punti={PUNTI_FINALS.M37} nota="finals" />
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          Nelle finali: Upper Final {PUNTI_FINALS.M35} pt, Lower Final {PUNTI_FINALS.M36} pt, Finalissima{' '}
+          {PUNTI_FINALS.Final} pt.
         </p>
       </div>
     </div>
@@ -242,6 +273,7 @@ function RankingTorneoRowView({
       </td>
       <td className="px-2 py-2 text-center text-slate-300">{row.svizzero}</td>
       <td className="px-2 py-2 text-center text-slate-300">{row.girone}</td>
+      <td className="px-2 py-2 text-center text-slate-300">{row.eliminazione}</td>
       <td className="px-2 py-2 text-right font-bold text-accent">{row.totale}</td>
     </tr>
   )

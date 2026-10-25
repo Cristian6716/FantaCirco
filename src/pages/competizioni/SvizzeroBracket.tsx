@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { useManagers } from '../../lib/queries'
-import { buildGiornateScores, useOverrides, usePunteggiGiornata } from '../../lib/leagueQueries'
+import { buildGiornateScores, useAdminSetOverride, useOverrides, usePunteggiGiornata } from '../../lib/leagueQueries'
 import {
   buildTeamNameMap,
+  megaSwissOverrideId,
   resolveSwissState,
   SWISS_TURNI,
   useMegaAccoppiamenti,
@@ -13,6 +14,8 @@ import {
 } from '../../lib/megagalattico'
 import type { TorneoOverrideInput } from '../../lib/tornei'
 import { EmptyState, PageLoader } from '../../components/ui'
+import { useAuth } from '../../auth/AuthProvider'
+import MatchScoreEditor from './MatchScoreEditor'
 
 /**
  * Tabellone svizzero in stile "Swiss Stage" (colonne per turno, in scroll
@@ -23,6 +26,7 @@ import { EmptyState, PageLoader } from '../../components/ui'
  * di esito a destra.
  */
 export default function SvizzeroBracket() {
+  const { isAdmin } = useAuth()
   const { data: managers } = useManagers()
   const { data: punteggi } = usePunteggiGiornata()
   const { data: overrides } = useOverrides()
@@ -84,8 +88,10 @@ export default function SvizzeroBracket() {
         <h2 className="text-2xl font-black uppercase tracking-tight text-white">Fase Svizzera</h2>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-max items-stretch gap-2">
+      {/* Mobile: turni impilati in verticale (nessuno scroll orizzontale annidato).
+          Desktop: colonne affiancate con scroll orizzontale. */}
+      <div className="md:overflow-x-auto md:pb-2">
+        <div className="flex flex-col gap-4 md:min-w-max md:flex-row md:items-stretch md:gap-2">
           {colonne.map(({ turno, matches }, idx) => (
             <div key={turno} className="flex items-stretch gap-2">
               <BracketColumn
@@ -93,6 +99,7 @@ export default function SvizzeroBracket() {
                 matches={matches}
                 isSpareggio={turno === SWISS_TURNI}
                 teamNameById={teamNameById}
+                isAdmin={isAdmin}
               />
               {(idx < colonne.length - 1 || qualificate.length > 0 || eliminate.length > 0) && <Connector />}
             </div>
@@ -109,7 +116,7 @@ export default function SvizzeroBracket() {
 
 function Connector() {
   return (
-    <div className="flex w-4 shrink-0 items-center justify-center self-center text-slate-600">
+    <div className="hidden w-4 shrink-0 items-center justify-center self-center text-slate-600 md:flex">
       <span className="text-lg leading-none">›</span>
     </div>
   )
@@ -120,17 +127,19 @@ function BracketColumn({
   matches,
   isSpareggio,
   teamNameById,
+  isAdmin,
 }: {
   turno: number
   matches: SwissMatchResolved[]
   isSpareggio: boolean
   teamNameById: Map<string, string>
+  isAdmin: boolean
 }) {
   const giornataReale = matches[0]?.giornataReale ?? null
   const groups = groupByRecord(matches)
 
   return (
-    <div className="flex w-64 shrink-0 flex-col gap-2.5">
+    <div className="flex w-full flex-col gap-2.5 md:w-64 md:shrink-0">
       <div className="text-center">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
           Turno {turno}
@@ -146,7 +155,12 @@ function BracketColumn({
           </div>
           <div className="divide-y divide-border">
             {items.map((m) => (
-              <SwissMatchRow key={`${m.managerA}-${m.managerB}`} match={m} teamNameById={teamNameById} />
+              <SwissMatchRow
+                key={`${m.managerA}-${m.managerB}`}
+                match={m}
+                teamNameById={teamNameById}
+                isAdmin={isAdmin}
+              />
             ))}
           </div>
         </div>
@@ -165,7 +179,7 @@ function EsitoColumn({
   teamNameById: Map<string, string>
 }) {
   return (
-    <div className="flex w-56 shrink-0 flex-col gap-2.5">
+    <div className="flex w-full flex-col gap-2.5 md:w-56 md:shrink-0">
       <div className="text-center">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Esito</p>
       </div>
@@ -228,7 +242,17 @@ function groupByRecord(matches: SwissMatchResolved[]): { record: string; items: 
     .map(([record, items]) => ({ record, items }))
 }
 
-function SwissMatchRow({ match, teamNameById }: { match: SwissMatchResolved; teamNameById: Map<string, string> }) {
+function SwissMatchRow({
+  match,
+  teamNameById,
+  isAdmin,
+}: {
+  match: SwissMatchResolved
+  teamNameById: Map<string, string>
+  isAdmin: boolean
+}) {
+  const setOverride = useAdminSetOverride()
+  const matchId = megaSwissOverrideId(match.turno, match.managerA, match.managerB)
   const nameA = teamNameById.get(match.managerA) ?? match.managerA
   const nameB = teamNameById.get(match.managerB) ?? match.managerB
   const winnerA = match.winner === 'A'
@@ -258,7 +282,39 @@ function SwissMatchRow({ match, teamNameById }: { match: SwissMatchResolved; tea
           {nameB}
         </span>
       </div>
-      {pending && <p className="mt-0.5 text-[10px] text-slate-500">In attesa dei punteggi</p>}
+      {pending && !isAdmin && <p className="mt-0.5 text-[10px] text-slate-500">In attesa dei punteggi</p>}
+      {match.draw && match.winner == null && !isAdmin && (
+        <p className="mt-0.5 text-[10px] text-amber-400">Parità: in attesa dello spareggio admin</p>
+      )}
+      {isAdmin && (
+        <>
+          <MatchScoreEditor
+            giornata={match.giornataReale}
+            managerA={match.managerA}
+            managerB={match.managerB}
+            scoreA={match.scoreA}
+            scoreB={match.scoreB}
+          />
+          {match.draw && (
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+              {(['A', 'B'] as const).map((side) => (
+                <button
+                  key={side}
+                  onClick={() => setOverride.mutate({ match_id: matchId, winner: match.winner === side ? null : side })}
+                  className={[
+                    'truncate rounded-lg border px-1 py-1 text-[11px] font-semibold',
+                    match.winner === side
+                      ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200'
+                      : 'border-border bg-surface-2 text-slate-300',
+                  ].join(' ')}
+                >
+                  Spareggio: {side === 'A' ? nameA : nameB}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
